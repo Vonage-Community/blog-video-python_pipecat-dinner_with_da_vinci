@@ -5,30 +5,24 @@ and documentation corrections land here, as patch versions.
 
 ## [Unreleased] 1.0.0 (tutorial)
 
-Not tagged yet: waiting for the live manual test (`docs/MANUAL_TEST.md`).
+Not tagged yet: waiting for the live manual and persona tests with a designed voice.
 
-- Started from a copy of `vonage-pipecat-openai-realtime` (commit `2ff4b77`, MIT,
-  © Vonage): browser app, FastAPI session API, limits, and one process per agent.
-- Replaced OpenAI Realtime with a modular Pipecat 1.16.0 pipeline: Deepgram
-  speech-to-text, OpenAI `gpt-4.1`, and ElevenLabs text-to-speech, each with its own
-  key and settings in `.env`.
-- Local turn detection with Silero VAD and Smart Turn v3 on the user aggregator.
-- A microphone gate: no audio reaches Deepgram until the browser can hear the agent,
-  then the agent greets once.
-- Errors that name the failed stage, with a hint per error category, and only end the
-  session when a service can't continue.
-- A transcript panel showing what Deepgram heard and what the agent said, delivered
-  as Vonage Video signals from the server and never stored.
-- `DEEPGRAM_KEYTERMS` for Deepgram keyterm prompting.
-- A waiting room with one card per stage: language and keyterms, OpenAI model and extra
-  instructions, ElevenLabs voice and speed, and turn-taking. Checked server-side; the
-  voice list includes your account's voices when the key has Voices: Read.
-- A timing line per reply in the transcript panel, by stage.
-- Short replies ("okay") no longer interrupt the agent: three words are needed while
-  it talks (`MinWordsUserTurnStartStrategy`).
-- A `Latency:` log line per reply, from Pipecat's `UserBotLatencyObserver`.
-- Signals go through a separate Vonage client (vonage-python-sdk#323), and none are
-  sent once a call is ending.
-- The prompt tells the agent it can't look up current events.
-- `AGENT_MODE=echo` diagnostic that checks Vonage audio in both directions without
-  any AI provider.
+- Started from a copy of `blog-video-python_pipecat-modular_voice_agent` (commit
+  `1140c38`, MIT, © Vonage): browser app, FastAPI session API, limits, one process per
+  agent, the Deepgram → OpenAI → ElevenLabs pipeline on Pipecat 1.16.0, transcript
+  signals, and the waiting room.
+- AI da Vinci: an AI portrayal of Leonardo da Vinci at Amboise in spring 1518, defined
+  in `app/persona.py`, with a knowledge cutoff, an identity lock, and rules for quotes,
+  disputed facts, and gossip.
+- English with an Italian accent, or Italian, chosen per call. The language sets
+  Deepgram, the reply language, ElevenLabs' language, and the fixed lines.
+- A fixed, non-interruptible greeting that discloses he's an AI portrayal, and a fixed
+  farewell after a long silence, both spoken a sentence at a time.
+- A join screen with the disclosure, a banner for the whole call, the public-domain
+  Melzi portrait with its credit, a glow while he speaks, and an honest status line.
+- `GET /api/persona`, so the browser shows the same text the server enforces.
+- The browser can't add instructions or pick a voice that isn't in `.env`.
+- `ELEVENLABS_VOICE_ID` is required and has no default: readers design their own voice.
+- Audio is handed to the Vonage connector at playing speed, so Pipecat's "bot is
+  speaking" matches what the guest hears. Before this, one word interrupted a reply
+  after its first second, and the idle timer started mid-reply.

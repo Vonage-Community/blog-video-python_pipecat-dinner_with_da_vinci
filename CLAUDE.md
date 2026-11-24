@@ -1,24 +1,35 @@
 # CLAUDE.md
 
-Maintainer notes for **blog-video-python_pipecat-modular_voice_agent**, the Part 2
-sample of a three-part Vonage Developer Blog series. This repository is the companion
-to a tutorial and must keep matching it.
+Maintainer notes for **blog-video-python_pipecat-dinner_with_da_vinci**, the sample for
+the Vonage Developer Blog post *Dinner With da Vinci: Build an AI Persona With Vonage
+Video*. This repository is the companion to a tutorial and must keep matching it.
 
-## Scope: keep it Part 2
+## Scope
 
-- A modular pipeline: **Deepgram** speech-to-text → **OpenAI** text LLM →
-  **ElevenLabs** text-to-speech, through Pipecat's `DeepgramSTTService`,
-  `OpenAILLMService`, and `ElevenLabsTTSService`.
-- Do **not** add OpenAI Realtime, personas (no Einstein), avatars, AWS/AgentCore,
-  telephony, recordings, benchmarks, or a provider-switching framework. Part 3 is a
-  separate repository.
-- This repo started as a copy of Part 1 (`vonage-pipecat-openai-realtime`) but has no
-  runtime, install, or setup dependency on it. Never add one, and never edit Part 1
-  from here.
-- Keep the Vonage **Video** Connector transport. Don't substitute the Audio Connector
-  or the Voice API.
-- Use licensed ElevenLabs voices only. Never clone a real person's voice.
-- After the `v1.0.0-tutorial` tag: only security fixes and doc corrections.
+- One character: an AI portrayal of **Leonardo da Vinci**, at Clos Lucé (the manor of
+  Cloux), Amboise, spring 1518, with no knowledge after that. English with an Italian
+  accent, or Italian, per call.
+- The modular pipeline from `blog-video-python_pipecat-modular_voice_agent`: Deepgram →
+  OpenAI → ElevenLabs on Pipecat 1.16.0 with the Vonage Video Connector transport.
+- Do **not** add: more characters, an avatar or lip-sync, a moving portrait, cloned or
+  imitated voices, OpenAI Realtime, telephony, recordings, memory across calls, tools,
+  or retrieval.
+- This repo started as a copy of the modular agent repo (commit `1140c38`) and has no
+  dependency on it. Never edit that repo from here.
+
+## The persona's hard rules
+
+- **Disclosure** on the join screen, in a banner for the whole call, and in the fixed
+  greeting, in both languages. The greeting is code (`fixed_speech`), never LLM output.
+- **Identity lock:** sincerely asked, he always says he's an AI portrayal.
+- **No invented quotes:** he never presents a saying as his words, even paraphrased.
+- **Disputed facts** are acknowledged, not settled. Gossip is documented or labeled
+  rumor, never invented.
+- **Voice:** a Voice Design voice, never a clone, and never described as Leonardo's.
+- **Portrait:** the public-domain Melzi drawing, static, with its credit shown.
+- Never write "Leonardo AI" (Leonardo.Ai is a Canva product).
+- The browser can't add instructions: `app/call_options.py` rejects them.
+- Daniela reviews any change to the Italian text.
 
 ## Commands
 
@@ -33,38 +44,38 @@ docker compose up --build                    # run the app on http://localhost:8
 
 ## Architecture rules
 
-- `app/modular_agent.py` is the code the blog post teaches. Keep the `Pipeline([...])`
-  list readable: one line per stage.
+- `app/persona.py` holds everything about the character. `app/modular_agent.py` doesn't
+  know who it plays.
+- Keep the `Pipeline([...])` list readable: one line per stage.
 - VAD belongs on `LLMUserAggregatorParams`, not on the transport params (Pipecat
   removed the transport field and ignores it silently).
+- `pace_audio_to_real_time` must stay until the Vonage transport paces audio itself:
+  without it, Pipecat thinks the bot stopped speaking about a second into each reply,
+  so one word interrupts and the idle timer starts mid-reply.
+- Fixed lines go to ElevenLabs a sentence at a time (`fixed_speech`).
 - `MicrophoneGate` drops audio until `POST /ready`; the greeting is sent once.
+- The farewell uses the user aggregator's `user_idle_timeout`; the worker's idle
+  timeout is 30 s longer as a backstop.
 - Transcripts go agent process → pipe → server → Vonage Video signal (`send_signal`,
-  type `transcript`) → browser. The server queues them only until sent. The browser
-  accepts only signals with no `from` connection (sent by the server).
-- The waiting room's choices are validated in `app/call_options.py` (allowed lists and
-  ranges) and travel to the agent process over the pipe, then onto `Settings` with
-  `CallOptions.apply_to`. Never pass a browser value to a provider unchecked. The
-  ElevenLabs key is only used server-side, including for listing voices.
-- `on_pipeline_error` ends the session only for fatal errors or unusable processors,
-  and names the stage. Services retry recoverable errors themselves.
-- One agent per OS process (`app/agent_process.py`). Every session has a tracked
-  supervisor task with ready, idle, and maximum-duration limits, and an idempotent end.
+  type `transcript`) to the browser's connection only. The browser accepts only signals
+  with no `from` connection. Signals use a separate Vonage client
+  (vonage-python-sdk#323).
 - Only the browser token is returned to the browser. API keys and the private key
-  never leave the server. Logs go through `app.config.setup_logging`, which redacts
-  Vonage, Deepgram, OpenAI, and ElevenLabs credentials.
+  never leave the server. Logs go through `app.config.setup_logging`, which redacts them.
 
 ## Dependencies
 
-- `pipecat-ai[deepgram,elevenlabs,openai,vonage-video-connector]` from PyPI at one
-  pinned version; see `docs/DEPENDENCIES.md`. Never install the Vonage fork alongside it.
+- `pipecat-ai[deepgram,elevenlabs,openai,vonage-video-connector]==1.16.0` from PyPI;
+  see `docs/DEPENDENCIES.md`. Never install the Vonage fork alongside it.
 - `uv.lock` is committed; Docker uses `uv sync --frozen`.
 - Check the real source of a new Pipecat version before using an API.
 
 ## Verification honesty
 
-Mocked tests don't prove WebRTC audio or provider behavior. Any change touching media,
-the agent, or dependencies needs `docs/MANUAL_TEST.md` with real credentials. Report
-anything not run as NOT VERIFIED.
+Mocked tests don't prove WebRTC audio, provider behavior, or how well the model follows
+the persona. Any change touching media, the agent, the prompt, or dependencies needs
+`docs/MANUAL_TEST.md` and `docs/PERSONA_TEST.md` with real credentials. Report anything
+not run as NOT VERIFIED.
 
 ## Publishing
 

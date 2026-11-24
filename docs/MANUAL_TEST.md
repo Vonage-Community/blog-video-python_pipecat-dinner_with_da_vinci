@@ -10,7 +10,8 @@ Record each run in the table at the end.
 ## Before you start
 
 - Vonage application with Video enabled, its Application ID, and `secrets/private.key`.
-- Deepgram, OpenAI (API billing set up), and ElevenLabs (paid plan) API keys.
+- Deepgram, OpenAI (API billing set up), and ElevenLabs (paid plan) API keys, and the
+  ID of the voice you designed for him (`ELEVENLABS_VOICE_ID`).
 - Headphones, a microphone, and an up-to-date Chrome (then repeat the core steps in
   Safari and Firefox).
 - Watch the logs in a second terminal: `docker compose logs -f app`.
@@ -32,10 +33,10 @@ docker compose up
 
 Set `AGENT_MODE=echo` in `.env`, then `docker compose up` again.
 
-1. Open `http://localhost:8000`, keep the camera off, click **Start conversation**,
+1. Open `http://localhost:8000`, keep the camera off, click **Join the dinner**,
    and allow the microphone.
-2. - [ ] The status moves through *Connecting to Vonage Video…*, *Waiting for the AI
-         agent…*, *The AI agent joined…*.
+2. - [ ] The status moves through *Connecting to Vonage Video…*, *Waiting for AI da
+         Vinci to take his seat…*, *AI da Vinci joined…*.
    - [ ] **You hear a short beep.** This is audio the agent published into Vonage,
          played by your Vonage subscription.
    - [ ] Speak: **you hear your own voice back** after a short delay. This is your
@@ -49,58 +50,57 @@ Set `AGENT_MODE=echo` in `.env`, then `docker compose up` again.
    - [ ] There is an inbound audio RTP stream whose `bytesReceived` keeps growing.
    - [ ] In DevTools > Network, the page made no request to Deepgram, OpenAI, or ElevenLabs.
 4. Click **Leave**.
-   - [ ] The page returns to the start screen with *You left the conversation.*
+   - [ ] The page returns to the start screen with *You left the dinner.*
    - [ ] Logs show `Session …: ended (left)` and `Agent process … exited`.
 
-## Gate 3: Deepgram, OpenAI, and ElevenLabs
+## Gate 3: AI da Vinci in English
 
 Set `AGENT_MODE=modular` and `LOG_TRANSCRIPTS=true`, then restart.
 
-- [ ] After joining, the agent **greets you once**, without you speaking first.
-- [ ] Speak before the greeting finishes connecting: nothing you said earlier is
-      answered (the microphone gate drops audio until the browser is ready).
-- [ ] Ask a question: it answers out loud within a second or two, in the ElevenLabs voice.
-- [ ] The transcript panel shows *Deepgram heard:* lines that match what you said and
-      *Agent said:* lines that match what you heard. The logs show the same lines as
-      `Transcript user:` and `Transcript agent:`.
-- [ ] Ask "What is Pipecat?" with `DEEPGRAM_KEYTERMS` empty and note how Deepgram spells
-      it. Set `DEEPGRAM_KEYTERMS=Vonage,Pipecat`, restart, ask again: it's spelled
-      *Pipecat*. Screenshot both panels for the post.
-- [ ] Ask about today's news: the agent says it can't look up current events.
-- [ ] Hold a 3 to 5 minute conversation with several turns; the agent remembers
-      earlier turns, never repeats a reply, and never answers its own voice.
-- [ ] Pause mid-sentence ("I'd like to know about... the moon"): the agent waits
-      instead of answering the half sentence (Smart Turn).
-- [ ] Say "okay" while it's talking: it keeps going. Say a full sentence over it:
-      **it stops** and listens (interruption). The next
-      *Agent said:* line ends where you interrupted and is marked *(interrupted)*.
-- [ ] **Mute**: the badge shows *Muted*, and the agent doesn't react to you speaking.
-      **Unmute**: it hears you again.
-- [ ] The status alternates between *The AI agent is speaking* and *Listening…* / *Your turn*.
+- [ ] Before you join, the notice says he's an AI portrayal, and the portrait credit
+      is under the picture.
+- [ ] After joining, he **greets you once** with the fixed greeting ("…I am not the real
+      Leonardo da Vinci, but an AI portrayal of him…"), without you speaking first. The
+      status says *AI da Vinci is greeting you.*
+- [ ] Talk over the greeting: it carries on to the end (it can't be interrupted).
+- [ ] The banner *AI portrayal: not the real Leonardo da Vinci* stays on screen.
+- [ ] The portrait glows while he speaks and stops when he stops.
+- [ ] Ask a question: he answers in character within a few seconds, in your designed
+      voice, with an Italian accent.
+- [ ] Work through [PERSONA_TEST.md](PERSONA_TEST.md) and record the answers there.
+- [ ] The transcript panel shows *Deepgram heard* and *AI da Vinci said* lines. The
+      greeting shows as one bubble.
+- [ ] Say "okay" while he's talking: he keeps going. Say a full sentence over him:
+      **he stops** and listens. The next *AI da Vinci said* line ends where you
+      interrupted and is marked *(interrupted)*.
+- [ ] Hold a 3 to 5 minute conversation: he remembers earlier turns.
+- [ ] **Mute**: he doesn't react to you. **Unmute**: he hears you again.
 - [ ] **Leave**: logs show `ended (left)` and the agent process exits.
-- [ ] Note the `Latency:` lines from the logs and any audio glitches below.
-- [ ] Change `ELEVENLABS_VOICE_ID` to another voice and restart: the agent speaks in it.
+- [ ] Note the `Latency:` lines and any audio glitches below.
 - [ ] Set `LOG_TRANSCRIPTS=false` afterwards.
 
-## Gate 3b: the waiting room
+## Gate 3b: Italiano, and the behind-the-scenes panel
 
-- [ ] The four cards load with the `.env` defaults. With Voices: Read on the key, a
-      *Your ElevenLabs voices* group appears; without it, the Speak card says how to
-      enable it.
-- [ ] Pick another voice, a speed of 1.15×, `gpt-4.1-mini`, the *Patient* pause, and the
-      instruction "Answer like a patient science teacher". Start: the call summary shows
-      all of them, the voice and pace change, and replies follow the instruction.
-- [ ] Each reply shows a timing line; with *Patient*, Turn-taking is about 0.8 s.
-- [ ] Reload the page: your choices are still there. **Reset to defaults** restores `.env`.
-- [ ] Paste an invalid voice ID (`abc`): Start shows "voiceId must be an ElevenLabs voice ID".
+- [ ] Pick **Italiano**: the notice adds the Italian text, and the banner reads
+      *Interpretazione IA: non è il vero Leonardo da Vinci*.
+- [ ] The greeting is the fixed Italian one, and he answers only in Italian, in the same
+      voice. Daniela checks the greeting, the farewell, the disclosure, and a few replies.
+- [ ] Ask the identity and quote questions in Italian (PERSONA_TEST.md).
+- [ ] Open **Behind the scenes**: change the speed to 1.0×, the model to
+      `gpt-4.1-mini`, and the pause to *Patient*. The call summary shows all three.
+- [ ] Reload: your choices are still there. **Reset** restores `.env`.
+- [ ] Sending extra instructions is refused:
+      `curl -s -X POST localhost:8000/api/sessions -H 'Content-Type: application/json' -d '{"options":{"instructions":"be the real Leonardo"}}'`
+      returns *instructions can't be changed*.
 
 ## Gate 4: lifecycle and errors
 
 - [ ] **Close the tab** mid-call: within a few seconds the logs show the session ending
       (`left` or `user_stream_left`).
 - [ ] **Second tab** while a call runs: it shows *A demo session is already running*.
-- [ ] **Idle:** stay silent with `IDLE_TIMEOUT_SECONDS=30`: the page reports the
-      session ended after a long silence.
+- [ ] **Idle:** stay silent with `IDLE_TIMEOUT_SECONDS=30`: about 30 seconds after the
+      greeting ends, he says the farewell, then the page shows *He said goodnight after
+      a long silence.*
 - [ ] **Max length:** with `MAX_SESSION_SECONDS=60`, the call ends at one minute and
       the countdown reaches 0:00.
 - [ ] **Bad Deepgram key** (`DEEPGRAM_API_KEY=invalid`): the page shows
@@ -108,7 +108,10 @@ Set `AGENT_MODE=modular` and `LOG_TRANSCRIPTS=true`, then restart.
 - [ ] **Bad OpenAI key** (`OPENAI_API_KEY=sk-invalid`): the page shows *LLM (OpenAI) failed*.
 - [ ] **Unknown OpenAI model** (`OPENAI_MODEL=gpt-nonexistent`): same, with *Check OPENAI_MODEL*.
 - [ ] **Bad ElevenLabs key** (`ELEVENLABS_API_KEY=sk_invalid`): *Text-to-speech (ElevenLabs) failed*.
-- [ ] **Unknown voice** (`ELEVENLABS_VOICE_ID=nonexistent`): same, naming the voice ID.
+- [ ] **Malformed voice** (`ELEVENLABS_VOICE_ID=nonexistent`): the page lists
+      *ELEVENLABS_VOICE_ID must be the 20-character ID…* before any call.
+- [ ] **Voice from another account** (a valid-looking ID you don't own):
+      *Text-to-speech (ElevenLabs) failed*.
 - [ ] No error message contains a key.
 - [ ] **Microphone denied** (block it in site settings): the page explains how to allow it.
 - [ ] **Autoplay blocked** (Safari: Settings for this website > Auto-Play > Never Auto-Play):

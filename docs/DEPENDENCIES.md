@@ -7,7 +7,9 @@ says or fails.
 ## Pinned versions
 
 Versions as installed in the Docker image and printed by `importlib.metadata` inside
-the container (2026-11-19):
+the container (2026-11-19, unchanged for this repo on 2026-11-24). Pipecat 1.17.0 came out
+on 2026-11-22; it adds AWS Transcribe language identification and a SIP transport,
+neither of which this sample uses, so it stays on 1.16.0:
 
 | Component | Version | Source |
 |---|---|---|
@@ -33,7 +35,8 @@ the container (2026-11-19):
 | Speech-to-text | Deepgram `nova-3-general`, `en` | Pipecat's default for `DeepgramSTTService`. Interim results on, so the user aggregator sees speech early. |
 | LLM | OpenAI `gpt-4.1` | Pipecat's default for `OpenAILLMService`, and within the ~700 ms first-token budget in [Pipecat's voice benchmark](https://www.pipecat.ai/benchmarks/voice-readiness). Configurable with `OPENAI_MODEL`. |
 | Text-to-speech | ElevenLabs `eleven_flash_v2_5` | Pipecat's default; ElevenLabs recommends Flash for agents (~100 ms). `eleven_v4_turbo` uses the Text to Dialogue WebSocket, which `ElevenLabsTTSService` doesn't use. |
-| Voice | `l7kNoIfnJKPg7779LI2t` (*Eddie - Natural and Helpful*) | One of ElevenLabs' [recommended replacements](https://elevenlabs.io/docs/help-center/product/voices/my-voices/what-are-default-voices) for the Default voices that expire on December 31, 2026. A Voice Library voice, so it needs a paid plan through the API. |
+| Voice | None: `ELEVENLABS_VOICE_ID` is required | Each reader designs their own with [Voice Design](https://elevenlabs.io/docs/eleven-creative/voices/voice-design). A designed voice belongs to the account that made it, so there is no ID to ship. |
+| Languages | `en`, `it` | The persona is written for both. Deepgram updated its Italian streaming model on 2026-09-22; [Smart Turn v3](https://github.com/pipecat-ai/smart-turn) lists Italian; Flash v2.5 is multilingual. |
 
 ## The Pipecat source: PyPI `pipecat-ai`
 
@@ -55,8 +58,14 @@ the real classes:
   It sends a KeepAlive every 5 seconds, so a closed microphone gate doesn't time out
   the Deepgram connection.
 - `OpenAILLMService(api_key=..., settings=OpenAILLMService.Settings(model, system_instruction))`.
-- `ElevenLabsTTSService(api_key=..., settings=ElevenLabsTTSService.Settings(model, voice))`.
+- `ElevenLabsTTSService(api_key=..., settings=ElevenLabsTTSService.Settings(model, voice, speed, language))`.
   The `voice_id=` and `model=` constructor arguments are deprecated.
+- `TTSSpeakFrame(text, append_to_context=True)` with `frame.interruptible = False`:
+  spoken word for word, added to the context, and kept through interruptions.
+- `LLMUserAggregatorParams(user_idle_timeout=...)` and the aggregator's
+  `on_user_turn_idle` event. The timer starts on `BotStoppedSpeakingFrame`.
+- `EndFrame` queued after the farewell: the worker ends once it reaches the end of the
+  pipeline, after the farewell's audio.
 - `LLMContextAggregatorPair(context, user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()))`.
   With no `user_turn_strategies`, turns start on VAD or a transcript and stop when
   `LocalSmartTurnAnalyzerV3` says the sentence is complete.
@@ -82,12 +91,14 @@ the real classes:
 | Greeting trigger | Pipecat examples greet in `on_client_connected`. | Greet on the browser's `POST /ready`, because only the browser knows it can play audio. |
 | Connector instances | The Video Connector guide allows one connector instance per process. | One OS process per session (`app/agent_process.py`). |
 | Routed sessions | Required by the project brief; Kitt Phi's tested tutorial uses routed sessions. | Always routed. |
+| When the bot stops speaking | `VonageVideoConnectorOutputTransport.write_audio_frame` calls the native `add_audio`, which buffers and returns at once. A 30-second reply reached the connector in about 1.1 s, and Pipecat logged *Bot stopped speaking* then, while the browser played it for 30 s more (measured 2026-11-24). `MinWordsUserTurnStartStrategy` then saw a silent bot and let one word interrupt, and the idle timer started mid-reply. Pipecat's websocket transports pace with `_write_audio_sleep`. | `pace_audio_to_real_time()` in `app/modular_agent.py` waits for each chunk's playing time, keeping 0.2 s ahead. Afterwards, *Bot stopped speaking* came within a second of the browser's audio ending, and "Okay." no longer interrupted. |
+| Long fixed text to Flash v2.5 | The ElevenLabs API returned 87 s of audio for the 290-character Italian greeting in one request (Default voice *Roger*, with or without `language_code`, at speed 0.9 or 1.0); `eleven_multilingual_v2` returned 21 s. Each sentence alone came back at its normal length (2.8 s, 12.5 s, 4.2 s). | `fixed_speech()` sends one `TTSSpeakFrame` per sentence, the way LLM replies arrive. Re-check with the designed voice. |
 
 ## Platforms
 
 | Platform | Status |
 |---|---|
-| Linux arm64 (Docker Desktop on Apple Silicon) | **Verified 2026-11-19:** image builds; ruff, mypy, and pytest pass inside it. |
+| Linux arm64 (Docker Desktop on Apple Silicon) | **Verified 2026-11-24:** image builds; ruff, mypy, and pytest pass inside it; headless Chrome calls in English and Italian (fake microphone) play the greeting, a reply, and the farewell. |
 | Linux x86_64 | Not verified with this repo. Wheels exist for all dependencies. |
 | Windows host | Not verified. Supported through Docker Desktop. |
 | Running the agent outside Docker on macOS/Windows | Not supported: the connector ships Linux wheels only. |

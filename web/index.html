@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Vonage Video voice agent: Deepgram, OpenAI, ElevenLabs</title>
+    <title>Dinner With da Vinci: an AI persona on Vonage Video</title>
     <link rel="stylesheet" href="styles.css" />
     <!-- Vonage Video Web SDK, pinned to the version this sample was built against. -->
     <script src="https://unpkg.com/@vonage/client-sdk-video@2.36.0/dist/js/opentok.min.js"></script>
@@ -12,91 +12,98 @@
   <body>
     <main class="page">
       <header>
-        <h1>Talk to an AI voice agent in a Vonage Video call</h1>
-        <p class="subtitle">
-          Choose how it listens, thinks, speaks, and takes turns. Then start the call.
-        </p>
+        <h1>Dinner With da Vinci</h1>
+        <p class="subtitle">A spring evening in 1518, at his house in Amboise, France. You're the guest from the future.</p>
       </header>
 
-      <section id="setup" class="panel">
-        <p id="echo-note" class="hint" hidden>
-          Echo mode (<code>AGENT_MODE=echo</code>): the agent beeps, then repeats your
-          microphone. No AI providers, so there is nothing to choose.
-        </p>
+      <section id="setup" class="panel invitation">
+        <div class="invitation-body">
+          <figure class="portrait">
+            <img id="setup-portrait" alt="Red chalk profile portrait of Leonardo da Vinci as an old man, with long hair and beard" />
+            <figcaption id="setup-credit" class="credit"></figcaption>
+          </figure>
 
-        <div id="stages" class="stages">
-          <fieldset class="stage listen">
-            <legend><span class="step">1</span>Listen<span class="provider">Deepgram</span></legend>
-            <label class="field">
-              <span>Language</span>
-              <select id="opt-language"></select>
-            </label>
+          <div class="invitation-text">
+            <!-- The disclosure comes first, before any button. Its text comes from the
+                 server (GET /api/persona), the same file the agent's greeting uses. -->
+            <p id="disclosure" class="notice" role="note"></p>
+
             <div class="field">
-              <label for="keyterm-input" title="Names Deepgram might mishear, like Pipecat or your surname">Words to listen for</label>
-              <div class="tags" id="keyterm-tags">
-                <input id="keyterm-input" type="text" autocomplete="off"
-                  placeholder="Type a word, then Enter" />
-              </div>
+              <span id="language-label">He speaks</span>
+              <div class="segmented two" role="radiogroup" aria-labelledby="language-label" id="opt-language"></div>
             </div>
-          </fieldset>
 
-          <fieldset class="stage think">
-            <legend><span class="step">2</span>Think<span class="provider">OpenAI</span></legend>
-            <label class="field">
-              <span>Model</span>
-              <select id="opt-model"></select>
+            <label class="checkbox">
+              <input type="checkbox" id="use-camera" />
+              Camera on <small>(optional, he only listens)</small>
             </label>
-            <label class="field">
-              <span title="Added after the built-in rules: short spoken replies, and it's an AI">Extra instructions <small id="instructions-count"></small></span>
-              <textarea id="opt-instructions" rows="3"
-                placeholder="For example: Answer like a patient science teacher."></textarea>
-            </label>
-          </fieldset>
 
-          <fieldset class="stage speak">
-            <legend><span class="step">3</span>Speak<span class="provider">ElevenLabs</span></legend>
-            <label class="field">
-              <span>Voice</span>
-              <select id="opt-voice"></select>
-            </label>
-            <label class="field" id="custom-voice-field" hidden>
-              <span>Voice ID</span>
-              <input id="opt-voice-id" type="text" autocomplete="off" spellcheck="false"
-                maxlength="20" placeholder="20 letters and digits" />
-            </label>
-            <label class="field">
-              <span>Speed <output id="speed-value">1.0×</output></span>
-              <input id="opt-speed" type="range" min="0.7" max="1.2" step="0.05" value="1" />
-            </label>
-            <p class="why" id="voices-note" hidden></p>
-          </fieldset>
-
-          <fieldset class="stage turns">
-            <legend><span class="step">4</span>Take turns<span class="provider">Pipecat</span></legend>
-            <div class="field">
-              <span id="pause-label" title="Longer pauses cut you off less often, and reply more slowly">Pause before replying</span>
-              <div class="segmented" role="radiogroup" aria-labelledby="pause-label" id="opt-pause"></div>
+            <div class="actions">
+              <button id="start" class="primary" type="button">Join the dinner</button>
             </div>
-            <label class="field">
-              <span>Words needed to interrupt <output id="words-value">3</output></span>
-              <input id="opt-words" type="range" min="1" max="5" step="1" value="3" />
-            </label>
-          </fieldset>
-        </div>
-
-        <div class="setup-foot">
-          <label class="checkbox">
-            <input type="checkbox" id="use-camera" />
-            Camera on <small>(optional, the agent only listens)</small>
-          </label>
-          <div class="actions">
-            <button id="reset-options" class="link" type="button">Reset</button>
-            <button id="start" class="primary" type="button">Start conversation</button>
+            <p id="echo-note" class="hint" hidden>
+              Echo mode (<code>AGENT_MODE=echo</code>): the agent beeps, then repeats your
+              microphone. No AI providers, so there is no persona.
+            </p>
           </div>
         </div>
+
+        <details class="kitchen" id="stages-details">
+          <summary>Behind the scenes: how he listens, thinks, speaks, and takes turns</summary>
+          <div id="stages" class="stages">
+            <fieldset class="stage listen">
+              <legend><span class="step">1</span>Listen<span class="provider">Deepgram</span></legend>
+              <div class="field">
+                <label for="keyterm-input" title="Names Deepgram might mishear, like Melzi or Sforza">Words to listen for</label>
+                <div class="tags" id="keyterm-tags">
+                  <input id="keyterm-input" type="text" autocomplete="off"
+                    placeholder="Type a word, then Enter" />
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="stage think">
+              <legend><span class="step">2</span>Think<span class="provider">OpenAI</span></legend>
+              <label class="field">
+                <span>Model</span>
+                <select id="opt-model"></select>
+              </label>
+              <p class="why">His rules are fixed on the server, in <code>app/persona.py</code>, so there's no box for extra instructions.</p>
+            </fieldset>
+
+            <fieldset class="stage speak">
+              <legend><span class="step">3</span>Speak<span class="provider">ElevenLabs</span></legend>
+              <label class="field">
+                <span>Voice</span>
+                <select id="opt-voice"></select>
+              </label>
+              <label class="field">
+                <span>Speed <output id="speed-value">0.9×</output></span>
+                <input id="opt-speed" type="range" min="0.7" max="1.2" step="0.05" value="0.9" />
+              </label>
+            </fieldset>
+
+            <fieldset class="stage turns">
+              <legend><span class="step">4</span>Take turns<span class="provider">Pipecat</span></legend>
+              <div class="field">
+                <span id="pause-label" title="Longer pauses cut you off less often, and reply more slowly">Pause before replying</span>
+                <div class="segmented" role="radiogroup" aria-labelledby="pause-label" id="opt-pause"></div>
+              </div>
+              <label class="field">
+                <span>Words needed to interrupt <output id="words-value">3</output></span>
+                <input id="opt-words" type="range" min="1" max="5" step="1" value="3" />
+              </label>
+            </fieldset>
+          </div>
+          <div class="setup-foot">
+            <button id="reset-options" class="link" type="button">Reset</button>
+          </div>
+        </details>
       </section>
 
       <section id="call" class="panel" hidden>
+        <!-- Stays on screen for the whole call. -->
+        <p id="call-banner" class="banner" role="note"></p>
         <ul id="call-summary" class="summary" aria-label="This call's settings"></ul>
         <div class="tiles">
           <figure class="tile" id="you-tile">
@@ -110,23 +117,18 @@
           </figure>
 
           <figure class="tile agent" id="agent-tile">
-            <div class="placeholder agent-card" aria-hidden="true">
-              <svg viewBox="0 0 64 64" width="72" height="72">
-                <rect x="8" y="26" width="6" height="12" rx="3" />
-                <rect x="20" y="16" width="6" height="32" rx="3" />
-                <rect x="32" y="8" width="6" height="48" rx="3" />
-                <rect x="44" y="18" width="6" height="28" rx="3" />
-                <rect x="56" y="27" width="6" height="10" rx="3" />
-              </svg>
-              <p>Audio-only AI participant<br />(no video)</p>
+            <!-- A still portrait. It glows while he speaks; nothing about it moves. -->
+            <div class="portrait-frame">
+              <img id="call-portrait" alt="Red chalk profile portrait of Leonardo da Vinci" />
             </div>
             <!-- The SDK plays the agent's audio from an element it creates in here. -->
             <div id="agent-media" class="visually-hidden"></div>
             <figcaption>
-              <span>AI agent</span>
+              <span id="agent-name">AI da Vinci</span>
               <span id="agent-hearing" class="badge ok" hidden>Can hear you</span>
-              <meter id="agent-level" min="0" max="1" value="0" aria-label="AI agent audio level"></meter>
+              <meter id="agent-level" min="0" max="1" value="0" aria-label="AI da Vinci audio level"></meter>
             </figcaption>
+            <p id="call-credit" class="credit tile-credit"></p>
           </figure>
         </div>
 
@@ -143,32 +145,31 @@
       </section>
 
       <section id="transcript" class="panel transcript" hidden aria-label="Conversation transcript">
-        <h2>The text between the stages</h2>
+        <h2>The conversation</h2>
         <p class="hint">
-          What Deepgram heard you say, what the agent said (written by OpenAI, spoken by
-          ElevenLabs), and how long each stage took before the reply started. Sent to this
-          page as Vonage Video signals; nothing is stored.
+          What Deepgram heard you say, what AI da Vinci said (written by OpenAI, spoken by
+          ElevenLabs), and how long each stage took before he replied. Sent to this page as
+          Vonage Video signals; nothing is stored.
         </p>
         <ol id="transcript-lines" aria-live="polite"></ol>
       </section>
 
-      <p id="status" class="status" role="status" aria-live="polite">Ready when you are.</p>
+      <p id="status" class="status" role="status" aria-live="polite">Your seat is ready.</p>
       <div id="error" class="error" role="alert" hidden></div>
 
-      <aside class="disclosure" aria-label="AI disclosure">
+      <aside class="disclosure" aria-label="About this demo">
         <p>
-          <strong>You'll be talking to an AI, not a person.</strong> Its answers and voice
-          are AI-generated, and the answers can be wrong. Nothing is recorded. Use headphones
-          if you can, so the agent doesn't hear itself.
+          <strong>This is an AI portrayal, not Leonardo da Vinci.</strong> Its answers can be
+          wrong, and it can't vouch for any quotation. Nothing is recorded. Use headphones if
+          you can, so he doesn't hear himself.
         </p>
         <details>
           <summary>Where your audio goes</summary>
           <p>
             Your microphone audio travels through Vonage Video to the agent and on to
-            Deepgram. The text of the conversation goes to OpenAI, and the agent's replies
-            to ElevenLabs, for the length of the call. The agent's voice reaches you
-            through the Vonage Video session, never directly from a provider. Nothing is
-            stored after the call.
+            Deepgram. The text of the conversation goes to OpenAI, and his replies to
+            ElevenLabs, for the length of the call. His voice reaches you through the Vonage
+            Video session, never directly from a provider. Nothing is stored after the call.
           </p>
         </details>
       </aside>

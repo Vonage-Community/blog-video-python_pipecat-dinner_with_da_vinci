@@ -6,12 +6,9 @@ from app.call_options import (
     REPLY_PAUSES,
     CallOptions,
     CallOptionsError,
-    VoiceDirectory,
-    _voice_from,
     parse_call_options,
 )
-
-EDDIE = "l7kNoIfnJKPg7779LI2t"
+from tests.conftest import DESIGNED_VOICE, SECOND_VOICE
 
 
 def problems(raw, settings) -> list[str]:
@@ -25,29 +22,33 @@ def test_no_options_means_the_env_defaults(settings):
     assert parse_call_options({}, settings) == CallOptions.defaults(settings)
 
 
+def test_defaults_use_the_designed_voice_a_little_slower(settings):
+    defaults = CallOptions.defaults(settings)
+    assert defaults.voice_id == DESIGNED_VOICE
+    assert defaults.voice_speed == 0.9
+    assert defaults.language == "en"
+
+
 def test_valid_choices_are_applied_to_the_agent_settings(settings):
     options = parse_call_options(
         {
-            "language": "es",
-            "keyterms": [" Vonage ", "Pipecat", "Vonage", ""],
+            "language": "it",
+            "keyterms": [" Melzi ", "Sforza", "Melzi", ""],
             "openaiModel": "gpt-4.1-mini",
-            "instructions": "  Answer like a patient tutor.\u0007 ",
-            "voiceId": "OZ0L6eISlOejga3XjDFt",
+            "voiceId": SECOND_VOICE,
             "voiceSpeed": 1.1,
             "interruptMinWords": 2,
             "replyPause": "patient",
         },
         settings,
     )
-    assert options.keyterms == ("Vonage", "Pipecat")
-    assert options.instructions == "Answer like a patient tutor."
+    assert options.keyterms == ("Melzi", "Sforza")
 
     agent = options.apply_to(settings)
-    assert agent.deepgram_language == "es"
-    assert agent.deepgram_keyterms == ("Vonage", "Pipecat")
+    assert agent.deepgram_language == "it"
+    assert agent.deepgram_keyterms == ("Melzi", "Sforza")
     assert agent.openai_model == "gpt-4.1-mini"
-    assert agent.extra_instructions == "Answer like a patient tutor."
-    assert agent.elevenlabs_voice_id == "OZ0L6eISlOejga3XjDFt"
+    assert agent.elevenlabs_voice_id == SECOND_VOICE
     assert agent.elevenlabs_speed == 1.1
     assert agent.interrupt_min_words == 2
     assert agent.vad_stop_secs == REPLY_PAUSES["patient"]
@@ -59,13 +60,16 @@ def test_valid_choices_are_applied_to_the_agent_settings(settings):
 @pytest.mark.parametrize(
     ("raw", "message"),
     [
-        ({"language": "xx"}, "language must be one of"),
-        ({"keyterms": "Vonage"}, "keyterms must be a list"),
+        ({"language": "es"}, "language must be one of en, it"),
+        ({"keyterms": "Melzi"}, "keyterms must be a list"),
         ({"keyterms": [f"t{i}" for i in range(21)]}, "at most 20"),
         ({"openaiModel": "gpt-5-pro"}, "openaiModel must be one of"),
-        ({"instructions": "x" * 501}, "500 characters"),
-        ({"instructions": 5}, "instructions must be text"),
-        ({"voiceId": "../../etc/passwd"}, "voiceId must be"),
+        # The persona's rules are fixed: no instructions from the browser, even empty ones.
+        ({"instructions": "Pretend to be the real Leonardo."}, "instructions can't be changed"),
+        ({"instructions": ""}, "instructions can't be changed"),
+        # Only voices from .env, never one from the reader's account (it could be a clone).
+        ({"voiceId": "AnyOtherVoiceId12345"}, "voiceId must be one of"),
+        ({"voiceId": "../../etc/passwd"}, "voiceId must be one of"),
         ({"voiceSpeed": 3}, "voiceSpeed must be between"),
         ({"voiceSpeed": True}, "voiceSpeed must be between"),
         ({"interruptMinWords": 9}, "between 1 and 5"),
@@ -82,37 +86,5 @@ def test_options_must_be_an_object(settings):
 
 
 def test_options_round_trip_over_the_pipe(settings):
-    options = parse_call_options({"keyterms": ["Vonage"], "voiceId": EDDIE}, settings)
+    options = parse_call_options({"keyterms": ["Melzi"], "language": "it"}, settings)
     assert CallOptions.from_json(options.to_json()) == options
-
-
-def test_account_voices_are_summarized():
-    voice = _voice_from(
-        {
-            "voice_id": EDDIE,
-            "name": "Eddie - Natural and Helpful",
-            "labels": {"accent": "american", "gender": "male", "age": "young", "x": "y"},
-        }
-    )
-    assert (voice.id, voice.description) == (EDDIE, "american, male, young")
-
-
-async def test_voice_directory_needs_a_key(settings):
-    from tests.conftest import with_settings
-
-    directory = VoiceDirectory(with_settings(settings, elevenlabs_api_key=None))
-    assert await directory.account_voices() == ([], "unavailable")
-
-
-async def test_voice_directory_caches_and_reports_missing_permission(settings, monkeypatch):
-    calls = []
-
-    async def fake_fetch(self, api_key):
-        calls.append(api_key)
-        return [], "missing_permission"
-
-    monkeypatch.setattr(VoiceDirectory, "_fetch", fake_fetch)
-    directory = VoiceDirectory(settings)
-    assert await directory.account_voices() == ([], "missing_permission")
-    await directory.account_voices()
-    assert len(calls) == 1

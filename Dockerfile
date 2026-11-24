@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 # Optional target that runs the automated tests inside Linux:
-#   docker build --target test -t modular-voice-agent:test .
+#   docker build --target test -t dinner-with-da-vinci:test .
 FROM builder AS test
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen

@@ -1,12 +1,14 @@
 :root {
   color-scheme: light dark;
-  --bg: #f6f6f8;
-  --panel: #ffffff;
-  --text: #1c1c22;
-  --muted: #5d5d6b;
-  --border: #dedee6;
-  --accent: #7b2ff7;
+  /* Candlelight and red chalk: parchment, walnut, and the portrait's sanguine. */
+  --bg: #f4ede1;
+  --panel: #fffaf1;
+  --text: #2a2118;
+  --muted: #6b5d4d;
+  --border: #e2d5c0;
+  --accent: #9c3d24;
   --accent-text: #ffffff;
+  --glow: #e8a33d;
   --danger: #c62828;
   --ok: #1b7f3b;
   --notice-bg: #fff6db;
@@ -23,13 +25,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121216;
-    --panel: #1c1c23;
-    --text: #ececf1;
-    --muted: #a5a5b4;
-    --border: #33333f;
-    --accent: #a678ff;
-    --accent-text: #111116;
+    --bg: #17120d;
+    --panel: #221a13;
+    --text: #f1e8da;
+    --muted: #b8a58e;
+    --border: #3d3024;
+    --accent: #e07a55;
+    --accent-text: #17120d;
+    --glow: #f2b65a;
     --danger: #ef6b6b;
     --ok: #5cc98a;
     --notice-bg: #2b2616;
@@ -61,7 +64,8 @@ body {
 }
 
 h1 {
-  font-size: 1.6rem;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 2rem;
   line-height: 1.25;
   margin: 0 0 8px;
 }
@@ -648,5 +652,133 @@ button.link {
 @media (max-width: 480px) {
   .stages {
     grid-template-columns: 1fr;
+  }
+}
+
+/* --- Dinner With da Vinci ---------------------------------------------------------- */
+
+.invitation-body {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.invitation-text {
+  display: grid;
+  gap: 16px;
+}
+
+.portrait {
+  margin: 0;
+}
+
+.portrait img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+}
+
+.credit {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+.credit a {
+  color: inherit;
+}
+
+/* The disclosure is the first thing on the page, and it looks like it matters. */
+.notice {
+  margin: 0;
+  background: var(--notice-bg);
+  border: 1px solid var(--notice-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+.notice .translated {
+  display: block;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+.segmented.two {
+  grid-template-columns: repeat(2, 1fr);
+  --stage: var(--accent);
+}
+
+.kitchen {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.kitchen summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.banner {
+  margin: 0 0 12px;
+  text-align: center;
+  font-weight: 700;
+  background: var(--notice-bg);
+  border: 1px solid var(--notice-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.portrait-frame {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  justify-content: center;
+  background: #120d09;
+}
+
+.portrait-frame img {
+  height: 100%;
+  object-fit: contain;
+  transition: filter 250ms ease;
+}
+
+/* While his audio plays, the frame glows. The picture itself never moves. */
+.tile.agent {
+  transition: box-shadow 250ms ease;
+}
+
+.tile.agent.speaking {
+  box-shadow: 0 0 0 3px var(--glow), 0 0 28px 4px var(--glow);
+}
+
+.tile.agent.speaking .portrait-frame img {
+  filter: brightness(1.12) sepia(0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile.agent,
+  .portrait-frame img {
+    transition: none;
+  }
+}
+
+.tile-credit {
+  padding: 0 12px 10px;
+  color: #b9ab98;
+}
+
+@media (max-width: 560px) {
+  .invitation-body {
+    grid-template-columns: 1fr;
+  }
+
+  .portrait {
+    max-width: 200px;
   }
 }

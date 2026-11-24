@@ -1,15 +1,19 @@
-// Browser side of the demo.
+// Browser side of Dinner With da Vinci.
 //
-// 0. The waiting room: pick how the agent listens, thinks, speaks, and takes turns.
-//    The server checks every choice before it uses it.
+// 0. The invitation: the AI-portrayal disclosure, the language, and (behind the scenes)
+//    how the agent listens, thinks, speaks, and takes turns. The disclosure text comes
+//    from the server, the same file the agent's greeting uses. The server checks every
+//    choice before it uses it.
 // 1. Get microphone (and optional camera) access with the Vonage Video Web SDK.
 // 2. Ask our server for a session with those choices. It returns the browser's token only.
 // 3. Join the routed Vonage Video session and publish.
-// 4. Subscribe to the AI agent's stream, recognised by the role in its
+// 4. Subscribe to the AI agent's stream, recognized by the role in its
 //    connection data, and to nothing else.
 // 5. Once its audio can play, tell the server so the agent greets you once.
 // 6. Show the transcript signals the server sends: what Deepgram heard, and what
 //    the agent said, plus how long each stage took before each reply.
+// 7. Keep the AI-portrayal banner on screen, and make the still portrait glow while
+//    his audio is playing. Nothing animates his face.
 'use strict';
 
 const $ = (id) => document.getElementById(id);
@@ -25,23 +29,27 @@ const ui = {
   agentMedia: $('agent-media'),
   agentLevel: $('agent-level'),
   agentHearing: $('agent-hearing'),
+  agentName: $('agent-name'),
   enableAudio: $('enable-audio'),
   mute: $('mute'),
   camera: $('camera'),
   leave: $('leave'),
   timeLeft: $('time-left'),
   stages: $('stages'),
+  stagesDetails: $('stages-details'),
   echoNote: $('echo-note'),
+  disclosure: $('disclosure'),
+  setupPortrait: $('setup-portrait'),
+  setupCredit: $('setup-credit'),
+  callBanner: $('call-banner'),
+  callPortrait: $('call-portrait'),
+  callCredit: $('call-credit'),
+  agentTile: $('agent-tile'),
   language: $('opt-language'),
   keytermTags: $('keyterm-tags'),
   keytermInput: $('keyterm-input'),
   model: $('opt-model'),
-  instructions: $('opt-instructions'),
-  instructionsCount: $('instructions-count'),
   voice: $('opt-voice'),
-  customVoiceField: $('custom-voice-field'),
-  voiceId: $('opt-voice-id'),
-  voicesNote: $('voices-note'),
   speed: $('opt-speed'),
   speedValue: $('speed-value'),
   pause: $('opt-pause'),
@@ -56,24 +64,69 @@ const ui = {
 };
 
 const END_MESSAGES = {
-  left: 'You left the conversation.',
+  left: 'You left the dinner.',
   user_stream_left: 'Your stream left the Vonage session, so the agent stopped.',
-  max_duration: 'The session reached its maximum length.',
-  idle_timeout: 'The session ended after a long silence.',
-  ready_timeout: 'The session ended because the agent and browser never connected.',
+  max_duration: 'The dinner reached its maximum length.',
+  idle_timeout: 'He said goodnight after a long silence.',
+  ready_timeout: 'The dinner ended because the agent and browser never connected.',
   server_shutdown: 'The server shut down.',
-  agent_exited: 'The AI agent left the call.',
-  error: 'The AI agent stopped because of an error.',
+  agent_exited: 'AI da Vinci left the dinner.',
+  error: 'AI da Vinci stopped because of an error.',
 };
 
 let call = null; // the conversation in progress, if any
 
 // --- Waiting room ------------------------------------------------------------------
 
-const CUSTOM_VOICE = '__custom__';
-const STORAGE_KEY = 'modular-voice-agent-options';
+const STORAGE_KEY = 'dinner-with-da-vinci-options';
 const PAUSE_LABELS = { quick: 'Quick', relaxed: 'Relaxed', patient: 'Patient' };
-const room = { catalog: null, keyterms: [] };
+const LANGUAGE_LABELS = { en: 'English, with an Italian accent', it: 'Italiano' };
+const room = { catalog: null, persona: null, keyterms: [] };
+
+// The disclosure and portrait credit, as the server's app/persona.py defines them.
+async function loadPersona() {
+  try {
+    room.persona = await api('/api/persona');
+  } catch {
+    return; // Start still works; the agent's spoken greeting carries the disclosure.
+  }
+  const { portrait, displayName } = room.persona;
+  for (const img of [ui.setupPortrait, ui.callPortrait]) img.src = portrait.path;
+  for (const credit of [ui.setupCredit, ui.callCredit]) {
+    const link = Object.assign(document.createElement('a'), {
+      href: portrait.sourceUrl,
+      textContent: portrait.credit,
+      target: '_blank',
+      rel: 'noopener',
+    });
+    credit.replaceChildren(link);
+  }
+  ui.agentName.textContent = displayName;
+  renderDisclosure();
+}
+
+// The disclosure in the chosen language. In Italian, the English one stays too, because
+// the rest of the page is in English.
+function renderDisclosure() {
+  const texts = room.persona?.languages;
+  if (!texts) return;
+  const language = selectedLanguage();
+  ui.disclosure.replaceChildren(document.createTextNode(texts.en.disclosure));
+  if (language !== 'en' && texts[language]) {
+    const translated = Object.assign(document.createElement('span'), {
+      lang: language,
+      className: 'translated',
+      textContent: texts[language].disclosure,
+    });
+    ui.disclosure.append(translated);
+  }
+  ui.callBanner.textContent = (texts[language] || texts.en).banner;
+  ui.callBanner.lang = language;
+}
+
+function selectedLanguage() {
+  return ui.language.querySelector('input:checked')?.value || 'en';
+}
 
 async function loadWaitingRoom() {
   let catalog;
@@ -81,33 +134,40 @@ async function loadWaitingRoom() {
     catalog = await api('/api/options');
   } catch (error) {
     // Not configured yet: Start shows the list of problems, as before.
-    ui.stages.hidden = true;
+    ui.stagesDetails.hidden = true;
     return;
   }
   room.catalog = catalog;
   if (catalog.agentMode === 'echo') {
-    ui.stages.hidden = true;
+    ui.stagesDetails.hidden = true;
+    ui.language.closest('.field').hidden = true;
     ui.echoNote.hidden = false;
     return;
   }
-  fillSelect(ui.language, catalog.languages.map((l) => [l.code, l.name]));
-  fillSelect(ui.model, catalog.openaiModels.map((m) => [m, m]));
-  fillVoices(catalog.voices);
-  const pauses = catalog.limits.replyPauses;
-  ui.pause.replaceChildren(
-    ...Object.entries(pauses).map(([value, secs]) => {
-      const label = document.createElement('label');
-      const input = document.createElement('input');
-      Object.assign(input, { type: 'radio', name: 'pause', value });
-      label.append(input, ` ${PAUSE_LABELS[value] || value} `);
-      const small = document.createElement('small');
-      small.textContent = `${secs}s`;
-      label.append(small);
-      return label;
-    }),
+  ui.language.replaceChildren(
+    ...catalog.languages.map(({ code }) => radio('language', code, LANGUAGE_LABELS[code] || code)),
   );
-  ui.instructions.maxLength = catalog.limits.maxInstructionsChars;
+  fillSelect(ui.model, catalog.openaiModels.map((m) => [m, m]));
+  fillSelect(ui.voice, catalog.voices.map((v) => [v.id, v.name]));
+  ui.pause.replaceChildren(
+    ...Object.entries(catalog.limits.replyPauses).map(([value, secs]) =>
+      radio('pause', value, PAUSE_LABELS[value] || value, `${secs}s`),
+    ),
+  );
   applyOptions({ ...catalog.defaults, ...savedOptions() });
+}
+
+function radio(name, value, text, note) {
+  const label = document.createElement('label');
+  const input = document.createElement('input');
+  Object.assign(input, { type: 'radio', name, value });
+  label.append(input, ` ${text} `);
+  if (note) {
+    const small = document.createElement('small');
+    small.textContent = note;
+    label.append(small);
+  }
+  return label;
 }
 
 function fillSelect(select, entries) {
@@ -116,56 +176,30 @@ function fillSelect(select, entries) {
   );
 }
 
-function fillVoices({ recommended, yours, yoursStatus }) {
-  const group = (label, voices) => {
-    const optgroup = Object.assign(document.createElement('optgroup'), { label });
-    for (const v of voices) {
-      // Keep the dropdown short; the accent and gender show on hover.
-      optgroup.append(
-        Object.assign(document.createElement('option'), { value: v.id, text: v.name, title: v.description }),
-      );
-    }
-    return optgroup;
-  };
-  const groups = [group('Recommended voices', recommended)];
-  const recommendedIds = new Set(recommended.map((v) => v.id));
-  const own = yours.filter((v) => !recommendedIds.has(v.id));
-  if (own.length) groups.push(group('Your ElevenLabs voices', own));
-  const other = group('Other', []);
-  other.append(Object.assign(document.createElement('option'), { value: CUSTOM_VOICE, text: 'Paste a voice ID…' }));
-  groups.push(other);
-  ui.voice.replaceChildren(...groups);
-  if (yoursStatus === 'missing_permission') {
-    ui.voicesNote.textContent =
-      'To list your own ElevenLabs voices here, give the API key the Voices: Read permission.';
-    ui.voicesNote.hidden = false;
-  }
-}
-
 function applyOptions(o) {
-  ui.language.value = o.language;
+  const language =
+    ui.language.querySelector(`input[value="${o.language}"]`) || ui.language.querySelector('input');
+  if (language) language.checked = true;
   room.keyterms = [...(o.keyterms || [])];
   renderKeyterms();
   ui.model.value = o.openaiModel;
   if (!ui.model.value) ui.model.selectedIndex = 0;
-  ui.instructions.value = o.instructions || '';
-  const known = [...ui.voice.options].some((opt) => opt.value === o.voiceId);
-  ui.voice.value = known ? o.voiceId : CUSTOM_VOICE;
-  ui.voiceId.value = known ? '' : o.voiceId || '';
+  ui.voice.value = o.voiceId;
+  if (!ui.voice.value) ui.voice.selectedIndex = 0;
   ui.speed.value = o.voiceSpeed;
   ui.words.value = o.interruptMinWords;
   const pause = ui.pause.querySelector(`input[value="${o.replyPause}"]`) || ui.pause.querySelector('input');
   if (pause) pause.checked = true;
   renderOptionLabels();
+  renderDisclosure();
 }
 
 function currentOptions() {
   return {
-    language: ui.language.value,
+    language: selectedLanguage(),
     keyterms: room.keyterms,
     openaiModel: ui.model.value,
-    instructions: ui.instructions.value.trim(),
-    voiceId: ui.voice.value === CUSTOM_VOICE ? ui.voiceId.value.trim() : ui.voice.value,
+    voiceId: ui.voice.value,
     voiceSpeed: Number(ui.speed.value),
     interruptMinWords: Number(ui.words.value),
     replyPause: ui.pause.querySelector('input:checked')?.value || 'quick',
@@ -175,9 +209,6 @@ function currentOptions() {
 function renderOptionLabels() {
   ui.speedValue.textContent = `${Number(ui.speed.value).toFixed(2).replace(/0$/, '')}×`;
   ui.wordsValue.textContent = ui.words.value;
-  ui.customVoiceField.hidden = ui.voice.value !== CUSTOM_VOICE;
-  const max = room.catalog?.limits.maxInstructionsChars || 500;
-  ui.instructionsCount.textContent = `${ui.instructions.value.length}/${max}`;
 }
 
 function renderKeyterms() {
@@ -233,11 +264,11 @@ function renderCallSummary(options) {
   ui.callSummary.replaceChildren();
   if (!options || call?.agentMode === 'echo') return;
   const language = room.catalog?.languages.find((l) => l.code === options.language)?.name || options.language;
-  const voice = [...ui.voice.options].find((o) => o.value === options.voiceId)?.text.split(' (')[0] || options.voiceId;
+  const voice = [...ui.voice.options].find((o) => o.value === options.voiceId)?.text || options.voiceId;
   const terms = options.keyterms.length ? `, ${options.keyterms.length} keyterm${options.keyterms.length > 1 ? 's' : ''}` : '';
   const items = [
     ['listen', 'Deepgram', `${language}${terms}`],
-    ['think', 'OpenAI', `${options.openaiModel}${options.instructions ? ', custom instructions' : ''}`],
+    ['think', 'OpenAI', `${options.openaiModel}, in character`],
     ['speak', 'ElevenLabs', `${voice}, ${options.voiceSpeed}×`],
     ['turns', 'Turn-taking', `${PAUSE_LABELS[options.replyPause]} pause, ${options.interruptMinWords} words to interrupt`],
   ];
@@ -251,13 +282,17 @@ function renderCallSummary(options) {
   }
 }
 
-for (const el of [ui.language, ui.model, ui.voice, ui.voiceId, ui.speed, ui.words, ui.instructions]) {
+for (const el of [ui.model, ui.voice, ui.speed, ui.words]) {
   el.addEventListener('input', () => {
     renderOptionLabels();
     saveOptions();
   });
 }
 ui.pause.addEventListener('change', saveOptions);
+ui.language.addEventListener('change', () => {
+  renderDisclosure();
+  saveOptions();
+});
 ui.keytermInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ',') {
     event.preventDefault();
@@ -436,7 +471,7 @@ function joinSession({ applicationId, vonageSessionId, token }) {
     streamCreated: (event) => onStreamCreated(event.stream),
     streamDestroyed: (event) => {
       if (roleOf(event.stream.connection) === 'agent' && call && !call.ending) {
-        setStatus('The AI agent left the call.');
+        setStatus('AI da Vinci left the dinner.');
       }
     },
     'signal:transcript': onTranscript,
@@ -457,7 +492,7 @@ function joinSession({ applicationId, vonageSessionId, token }) {
         reject(new Error(`Could not connect to Vonage Video: ${connectError.message}`));
         return;
       }
-      if (!call.agentSubscriber) setStatus('Connected. Waiting for the AI agent to join…');
+      if (!call.agentSubscriber) setStatus('Connected. Waiting for AI da Vinci to take his seat…');
       session.publish(call.publisher, (publishError) =>
         publishError
           ? reject(new Error(`Could not publish your microphone: ${publishError.message}`))
@@ -481,7 +516,7 @@ function onTranscript(event) {
   const item = document.createElement('li');
   item.className = line.role === 'user' ? 'heard' : 'said';
   const label = document.createElement('strong');
-  label.textContent = line.role === 'user' ? 'Deepgram heard' : 'Agent said';
+  label.textContent = line.role === 'user' ? 'Deepgram heard' : 'AI da Vinci said';
   const text = document.createElement('span');
   text.textContent = line.text;
   item.append(label, text);
@@ -493,6 +528,9 @@ function onTranscript(event) {
   ui.transcriptLines.append(item);
   ui.transcript.hidden = false;
   item.scrollIntoView({ block: 'nearest' });
+  // Your words reached the agent, and his reply hasn't started: he's thinking.
+  if (call && line.role === 'user') call.thinking = true;
+  if (call && line.role === 'agent') call.greeted = true;
 }
 
 // One per reply, sent when the agent starts speaking: how long you waited and where
@@ -540,7 +578,7 @@ function onStreamCreated(stream) {
   }
   if (!call || call.agentSubscriber) return;
 
-  setStatus('The AI agent joined. Connecting to its audio…');
+  setStatus('AI da Vinci joined. Connecting to his audio…');
   const subscriber = call.session.subscribe(
     stream,
     ui.agentMedia,
@@ -559,7 +597,7 @@ function onStreamCreated(stream) {
     },
     (error) => {
       if (error) {
-        endCall(`Could not subscribe to the AI agent: ${error.message}`, true);
+        endCall(`Could not subscribe to AI da Vinci: ${error.message}`, true);
       } else if (subscriber.isAudioBlocked()) {
         offerAudioUnblock();
       } else {
@@ -578,7 +616,7 @@ function onStreamCreated(stream) {
 
 function offerAudioUnblock() {
   ui.enableAudio.hidden = false;
-  setStatus('Your browser blocked audio playback. Click "Enable audio" to hear the agent.');
+  setStatus('Your browser blocked audio playback. Click "Enable audio" to hear him.');
 }
 
 // Tell the server the agent's audio can play here. The agent greets you only after this.
@@ -602,17 +640,26 @@ async function signalReady() {
   }
 }
 
-// Status while talking, derived from the real audio levels of both streams.
+// Status while talking, derived from the real audio levels of both streams and the
+// transcript signals. It only says what is actually happening.
 function renderLiveStatus() {
   if (!call?.live || call.ending) return;
+  const speaking = agentLevel.speaking;
+  ui.agentTile.classList.toggle('speaking', speaking);
+  if (speaking) call.thinking = false;
   if (call.agentMode === 'echo') {
     setStatusQuietly('Echo diagnostic: you should have heard a beep. Now speak and you will hear yourself.');
-  } else if (agentLevel.speaking) {
-    setStatusQuietly('The AI agent is speaking. Talk over it to interrupt.');
+  } else if (speaking && !call.greeted) {
+    // The greeting carries the disclosure, so the server doesn't let it be cut short.
+    setStatusQuietly('AI da Vinci is greeting you.');
+  } else if (speaking) {
+    setStatusQuietly('AI da Vinci is speaking. Talk over him to interrupt.');
   } else if (call.muted) {
-    setStatusQuietly("You're muted, so the agent can't hear you.");
+    setStatusQuietly("You're muted, so he can't hear you.");
   } else if (youLevel.speaking) {
     setStatusQuietly('Listening…');
+  } else if (call.thinking) {
+    setStatusQuietly('AI da Vinci is thinking…');
   } else {
     setStatusQuietly('Your turn: say something.');
   }
@@ -686,6 +733,8 @@ async function start() {
     muted: false,
     ready: false,
     live: false,
+    thinking: false,
+    greeted: false,
     ending: false,
     pollFailures: 0,
   };
@@ -739,6 +788,7 @@ async function endCall(message, isError = false, { serverEnded = false, problems
   }
 
   call = null;
+  ui.agentTile.classList.remove('speaking');
   ui.call.hidden = true;
   ui.setup.hidden = false;
   ui.start.disabled = false;
@@ -788,4 +838,5 @@ window.addEventListener('pagehide', () => {
   }
 });
 
+loadPersona();
 loadWaitingRoom();

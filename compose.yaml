@@ -2,7 +2,7 @@
 services:
   app:
     build: .
-    image: modular-voice-agent:local
+    image: dinner-with-da-vinci:local
     # A tiny init process forwards Ctrl-C/stop signals and reaps the per-session
     # agent processes.
     init: true

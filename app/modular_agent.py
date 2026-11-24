@@ -1,4 +1,4 @@
-"""The AI participant: a modular Pipecat pipeline that joins the Vonage Video session.
+"""The AI participant: AI da Vinci, a modular Pipecat pipeline in a Vonage Video session.
 
     Vonage Video session (routed)
         │  your microphone audio
@@ -22,6 +22,8 @@
 
 Each stage is a separate service with its own key, model, and settings. The browser
 never talks to any of them directly: every sound reaches you through Vonage Video.
+
+Who the agent plays, and in which language, comes from app/persona.py.
 """
 
 from __future__ import annotations
@@ -35,11 +37,12 @@ from loguru import logger
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import (
+    EndFrame,
     ErrorFrame,
     Frame,
     InputAudioRawFrame,
-    LLMRunFrame,
     OutputAudioRawFrame,
+    TTSSpeakFrame,
 )
 from pipecat.observers.user_bot_latency_observer import UserBotLatencyObserver
 from pipecat.pipeline.pipeline import Pipeline
@@ -67,26 +70,24 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.utils.errors import ErrorCategory
 from pipecat.workers.runner import WorkerRunner
 
+from app import persona
 from app.config import Settings, redact
 from app.session_manager import AgentConnection, AgentEvents
 
-SYSTEM_INSTRUCTION = """\
-You are a friendly AI voice assistant taking part in a Vonage Video call.
-You can hear the user, but you cannot see them.
-Everything you say is spoken aloud by a text-to-speech voice, so keep replies short
-and conversational: one to three sentences unless the user asks for more. Write
-plain sentences only: no lists, markdown, emoji, or symbols that can't be spoken.
-Spell out numbers the way you would say them. You hear the user through a
-speech-to-text service, so if a sentence looks garbled, ask them to repeat it.
-You can't browse the internet or look up today's news, so say so instead of
-guessing about current events.
-If you are not sure about something, say so. If anyone asks, you are an AI
-model, not a human."""
+# The pipeline's own idle timeout is a backstop: the farewell (see ModularAgent) ends
+# an idle call first, this many seconds earlier.
+FAREWELL_HEADSTART_SECONDS = 30
 
-GREETING_PROMPT = (
-    "The user has just joined the call and can hear you now. Greet them in one short "
-    "sentence and ask what they would like to talk about."
-)
+
+def fixed_speech(text: str) -> TTSSpeakFrame:
+    """Words spoken exactly as written, which talking over can't cut short.
+
+    The LLM never sees a request to write them, so it can't leave anything out. They are
+    still added to the conversation, so the model knows what was said.
+    """
+    frame = TTSSpeakFrame(text, append_to_context=True)
+    frame.interruptible = False
+    return frame
 
 
 def connection_role(client: dict[str, Any]) -> str | None:
@@ -116,6 +117,7 @@ class VonageAgent:
         self._conversation_started = False
         self._joined = False
         self._failure_reported = False
+        self._said_farewell = False
 
     def build_pipeline(self, transport: VonageVideoConnectorTransport) -> PipelineWorker:
         raise NotImplementedError
@@ -136,7 +138,7 @@ class VonageAgent:
                 audio_in_enabled=True,
                 audio_out_enabled=True,
                 # The browser shows this name next to the agent's stream.
-                publisher_name="AI agent",
+                publisher_name=persona.DISPLAY_NAME,
                 # Subscribe to every audio stream in the session. Only the browser
                 # holds the other token, so that is the user's microphone.
                 audio_in_auto_subscribe=True,
@@ -164,8 +166,11 @@ class VonageAgent:
         await runner.add_workers(worker)
         await runner.run()
 
+        if self._said_farewell:
+            # The farewell played and the pipeline ended itself. Tell the server why.
+            self._events.idle_timeout()
         # Safety net: never end silently without having joined.
-        if not self._joined and not self._stop_requested:
+        elif not self._joined and not self._stop_requested:
             self._report_failure(
                 "The agent stopped before it joined the Vonage session. See the server logs."
             )
@@ -269,8 +274,8 @@ _HINTS: dict[str, dict[ErrorCategory, str]] = {
     "Text-to-speech (ElevenLabs)": {
         ErrorCategory.AUTHENTICATION: "Check ELEVENLABS_API_KEY.",
         ErrorCategory.AUTHORIZATION: (
-            "Your ElevenLabs plan can't use this voice through the API. Voice Library "
-            "voices need a paid plan."
+            "ElevenLabs refused this voice. Check that ELEVENLABS_VOICE_ID is a voice in "
+            "this account and that the account is on a paid plan."
         ),
         ErrorCategory.INVALID_REQUEST: "Check ELEVENLABS_VOICE_ID and ELEVENLABS_MODEL.",
         ErrorCategory.QUOTA: "Your ElevenLabs account is out of credits.",
@@ -366,17 +371,13 @@ class ModularAgent(VonageAgent):
             ),
         )
 
-        # Think: a text reply from the whole conversation so far. Instructions from the
-        # waiting room come after the fixed rules, which they can't replace.
-        instruction = SYSTEM_INSTRUCTION
-        if settings.extra_instructions:
-            instruction += "\n\nThe user also asked you to follow these instructions:\n"
-            instruction += settings.extra_instructions
+        # Think: a reply in character, from the whole conversation so far. The persona's
+        # rules and the language for this call come from app/persona.py.
         llm = OpenAILLMService(
             api_key=settings.openai_api_key.get(),
             settings=OpenAILLMService.Settings(
                 model=settings.openai_model,
-                system_instruction=instruction,
+                system_instruction=persona.system_instruction(settings.deepgram_language),
             ),
         )
 
@@ -387,10 +388,15 @@ class ModularAgent(VonageAgent):
                 model=settings.elevenlabs_model,
                 voice=settings.elevenlabs_voice_id,
                 speed=settings.elevenlabs_speed,
+                # The same voice speaks both languages. Naming the language helps it read
+                # numbers and dates the way that language says them.
+                language=settings.deepgram_language,
             ),
         )
 
-        context = LLMContext([{"role": "developer", "content": GREETING_PROMPT}])
+        # Memory: the context holds the whole dinner, every turn from both sides, for the
+        # length of the call. Nothing in it is saved anywhere when the call ends.
+        context = LLMContext()
         # No speech-to-speech model decides when you've finished talking anymore, so
         # the user aggregator does: Silero VAD hears speech start and stop, and
         # Pipecat's default Smart Turn v3 model decides whether the sentence is done.
@@ -405,8 +411,15 @@ class ModularAgent(VonageAgent):
                     # many of your words, so "okay" or "mm-hm" doesn't cut it off.
                     start=[MinWordsUserTurnStartStrategy(min_words=settings.interrupt_min_words)],
                 ),
+                # How long the guest can stay quiet after he finishes speaking.
+                user_idle_timeout=settings.idle_timeout_seconds,
             ),
         )
+
+        # A long silence: he says goodbye in character, then the call ends.
+        @user_aggregator.event_handler("on_user_turn_idle")
+        async def on_user_idle(aggregator: Any) -> None:
+            await self._say_farewell()
 
         # The text between the stages: what Deepgram heard, and what the agent said.
         # Both go to your browser's transcript panel; logging them is optional.
@@ -445,7 +458,7 @@ class ModularAgent(VonageAgent):
             pipeline,
             params=PipelineParams(enable_metrics=True, enable_usage_metrics=True),
             observers=[latency],
-            idle_timeout_secs=settings.idle_timeout_seconds,
+            idle_timeout_secs=settings.idle_timeout_seconds + FAREWELL_HEADSTART_SECONDS,
             processor_unusable_policy=ProcessorUnusablePolicy.END,
             # The browser follows the call through Vonage events, not Pipecat's RTVI protocol.
             enable_rtvi=False,
@@ -459,10 +472,21 @@ class ModularAgent(VonageAgent):
         self._events.transcript(role, text, interrupted)
 
     async def begin_conversation(self, worker: PipelineWorker) -> None:
-        logger.info("Browser is ready: opening the microphone and requesting a greeting")
+        logger.info("Browser is ready: opening the microphone and playing the greeting")
         self._gate.open = True
-        # LLMRunFrame sends the context (the greeting prompt) to OpenAI for a reply.
-        await worker.queue_frames([LLMRunFrame()])
+        # The disclosure is guaranteed in code, not left to the model: every call opens
+        # with these exact words, before the LLM has said anything.
+        greeting = persona.LANGUAGES[self._settings.deepgram_language].greeting
+        await worker.queue_frames([fixed_speech(greeting)])
+
+    async def _say_farewell(self) -> None:
+        if self._said_farewell or self._worker is None:
+            return
+        self._said_farewell = True
+        logger.info("The guest has been quiet too long: saying goodbye")
+        farewell = persona.LANGUAGES[self._settings.deepgram_language].farewell
+        # EndFrame waits behind the farewell's audio, so the pipeline ends after it plays.
+        await self._worker.queue_frames([fixed_speech(farewell), EndFrame()])
 
 
 class MicrophoneEcho(FrameProcessor):

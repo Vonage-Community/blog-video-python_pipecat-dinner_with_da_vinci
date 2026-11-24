@@ -114,7 +114,7 @@ wheels = [
 ]
 
 [[package]]
-name = "blog-video-python-pipecat-modular-voice-agent"
+name = "blog-video-python-pipecat-dinner-with-da-vinci"
 version = "1.0.0"
 source = { virtual = "." }
 dependencies = [

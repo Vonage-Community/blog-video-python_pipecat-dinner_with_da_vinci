@@ -20,21 +20,13 @@ from loguru import logger
 DEFAULT_PRIVATE_KEY_PATH = "/run/secrets/vonage_private_key"
 DEFAULT_DEEPGRAM_MODEL = "nova-3-general"
 DEFAULT_DEEPGRAM_LANGUAGE = "en"
+PERSONA_LANGUAGES = ("en", "it")  # the languages app/persona.py is written for
 DEFAULT_OPENAI_MODEL = "gpt-4.1"
-# "Eddie - Natural and Helpful", one of the voices ElevenLabs recommends in place of its
-# Default voices, which expire on December 31, 2026.
-DEFAULT_ELEVENLABS_VOICE_ID = "l7kNoIfnJKPg7779LI2t"
+# Flash v2.5 is multilingual, so one designed voice speaks English and Italian.
 DEFAULT_ELEVENLABS_MODEL = "eleven_flash_v2_5"
+DEFAULT_ELEVENLABS_SPEED = 0.9  # a little slower than normal, for an unhurried dinner
 DEFAULT_OPENAI_MODELS = ("gpt-4.1", "gpt-4.1-mini")
-# ElevenLabs' recommended replacements for its Default voices. Voice Library voices
-# work by ID on any paid plan, with no setup in your ElevenLabs account.
-DEFAULT_ELEVENLABS_VOICES = (
-    ("l7kNoIfnJKPg7779LI2t", "Eddie - Natural and Helpful"),
-    ("OZ0L6eISlOejga3XjDFt", "Talia - Warm Soft Guide"),
-    ("BFd5oBc2DDna33pSi4Gf", "Alicia - Polished Global Anchor"),
-    ("jSuBIjxMKhqIfb0wCK1F", "Baxter - Dry Calm Aussie"),
-    ("6WwXjDDEMyNmFG95zycZ", "Eldrin - Crisp British Baritone"),
-)
+VOICE_ID = re.compile(r"^[A-Za-z0-9]{20}$")  # the shape of an ElevenLabs voice ID
 AGENT_MODES = ("modular", "echo")
 MAX_KEYTERMS = 50
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -77,14 +69,15 @@ class Settings:
     # Words Deepgram should listen for, such as product or people's names.
     deepgram_keyterms: tuple[str, ...] = ()
     openai_model: str = DEFAULT_OPENAI_MODEL
-    elevenlabs_voice_id: str = DEFAULT_ELEVENLABS_VOICE_ID
+    # No default: each reader designs their own voice (see the README).
+    elevenlabs_voice_id: str = ""
     elevenlabs_model: str = DEFAULT_ELEVENLABS_MODEL
     # What the waiting room offers. The per-call values below default to .env and can
     # be changed for one call from the waiting room (see app/call_options.py).
     openai_models: tuple[str, ...] = DEFAULT_OPENAI_MODELS
-    elevenlabs_voices: tuple[tuple[str, str], ...] = DEFAULT_ELEVENLABS_VOICES
-    extra_instructions: str = ""
-    elevenlabs_speed: float = 1.0
+    # Extra voices the waiting room may offer, as (voice ID, name).
+    elevenlabs_voices: tuple[tuple[str, str], ...] = ()
+    elevenlabs_speed: float = DEFAULT_ELEVENLABS_SPEED
     interrupt_min_words: int = 3
     vad_stop_secs: float = 0.2
     # "modular" runs Deepgram -> OpenAI -> ElevenLabs. "echo" is a diagnostic that plays
@@ -177,8 +170,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     )
     elevenlabs_api_key = api_key(
         "ELEVENLABS_API_KEY",
-        "Create one at elevenlabs.io/app/developers/api-keys (a paid plan is needed to "
-        "use Voice Library voices through the API)",
+        "Create one at elevenlabs.io/app/developers/api-keys, with the Text to Speech permission",
     )
 
     keyterms = tuple(term.strip() for term in text("DEEPGRAM_KEYTERMS").split(",") if term.strip())
@@ -191,18 +183,27 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     models = tuple(m.strip() for m in text("OPENAI_MODELS").split(",") if m.strip())
     models = tuple(dict.fromkeys((openai_model, *(models or DEFAULT_OPENAI_MODELS))))
 
-    voices: tuple[tuple[str, str], ...] = DEFAULT_ELEVENLABS_VOICES
-    if text("ELEVENLABS_VOICES"):
-        parsed = []
-        for entry in text("ELEVENLABS_VOICES").split(";"):
-            voice_id, _, name = entry.strip().partition(":")
-            if voice_id.strip() and name.strip():
-                parsed.append((voice_id.strip(), name.strip()))
-            elif entry.strip():
-                problems.append(
-                    "ELEVENLABS_VOICES entries must look like VOICE_ID:Name, separated by ;"
-                )
-        voices = tuple(parsed)
+    voice_id = text("ELEVENLABS_VOICE_ID")
+    if agent_mode == "modular" and not VOICE_ID.match(voice_id):
+        problems.append(
+            "ELEVENLABS_VOICE_ID must be the 20-character ID of the voice you designed for "
+            "the character (ElevenLabs > Voices > My Voices > the voice's menu > Copy voice ID)"
+        )
+
+    voices: list[tuple[str, str]] = []
+    for entry in text("ELEVENLABS_VOICES").split(";"):
+        extra_id, _, name = (part.strip() for part in entry.partition(":"))
+        if VOICE_ID.match(extra_id) and name:
+            voices.append((extra_id, name))
+        elif entry.strip():
+            problems.append(
+                "ELEVENLABS_VOICES entries must look like VOICE_ID:Name, separated by ;"
+            )
+
+    language = text("DEEPGRAM_LANGUAGE") or DEFAULT_DEEPGRAM_LANGUAGE
+    if language not in PERSONA_LANGUAGES:
+        problems.append(f"DEEPGRAM_LANGUAGE must be one of {', '.join(PERSONA_LANGUAGES)}")
+        language = DEFAULT_DEEPGRAM_LANGUAGE
 
     log_level = text("LOG_LEVEL", "INFO").upper()
     if log_level not in LOG_LEVELS:
@@ -216,12 +217,12 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         openai_api_key=openai_api_key,
         elevenlabs_api_key=elevenlabs_api_key,
         deepgram_model=text("DEEPGRAM_MODEL") or DEFAULT_DEEPGRAM_MODEL,
-        deepgram_language=text("DEEPGRAM_LANGUAGE") or DEFAULT_DEEPGRAM_LANGUAGE,
+        deepgram_language=language,
         deepgram_keyterms=keyterms,
         openai_model=openai_model,
         openai_models=models,
-        elevenlabs_voices=voices,
-        elevenlabs_voice_id=text("ELEVENLABS_VOICE_ID") or DEFAULT_ELEVENLABS_VOICE_ID,
+        elevenlabs_voices=tuple(voices),
+        elevenlabs_voice_id=voice_id,
         elevenlabs_model=text("ELEVENLABS_MODEL") or DEFAULT_ELEVENLABS_MODEL,
         agent_mode=agent_mode,
         max_active_sessions=integer("MAX_ACTIVE_SESSIONS", 1, 1, 5),

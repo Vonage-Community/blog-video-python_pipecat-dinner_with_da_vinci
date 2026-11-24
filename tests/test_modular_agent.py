@@ -16,10 +16,11 @@ import pytest
 pytest.importorskip("vonage_video_connector", reason="native connector is Linux-only")
 
 from pipecat.frames.frames import (  # noqa: E402
+    EndFrame,
     ErrorFrame,
     InputAudioRawFrame,
-    LLMRunFrame,
     OutputAudioRawFrame,
+    TTSSpeakFrame,
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService  # noqa: E402
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService  # noqa: E402
@@ -34,9 +35,10 @@ from pipecat.turns.user_start.min_words_user_turn_start_strategy import (  # noq
 )
 from pipecat.utils.errors import ErrorCategory  # noqa: E402
 
+from app import persona  # noqa: E402
 from app.agent_process import ProcessAgent  # noqa: E402
 from app.modular_agent import (  # noqa: E402
-    SYSTEM_INSTRUCTION,
+    FAREWELL_HEADSTART_SECONDS,
     EchoAgent,
     MicrophoneEcho,
     MicrophoneGate,
@@ -98,8 +100,8 @@ def test_services_use_the_configured_models_and_voice(settings, transport):
     custom = with_settings(
         settings,
         deepgram_model="nova-3-medical",
-        deepgram_language="en-GB",
-        deepgram_keyterms=("Vonage", "Pipecat"),
+        deepgram_language="it",
+        deepgram_keyterms=("Melzi", "Sforza"),
         openai_model="gpt-4.1-mini",
         elevenlabs_voice_id="OZ0L6eISlOejga3XjDFt",
         elevenlabs_model="eleven_multilingual_v2",
@@ -109,11 +111,12 @@ def test_services_use_the_configured_models_and_voice(settings, transport):
     stt = by_type[DeepgramSTTService]._settings
     llm = by_type[OpenAILLMService]._settings
     tts = by_type[ElevenLabsTTSService]._settings
-    assert (stt.model, str(stt.language)) == ("nova-3-medical", "en-GB")
-    assert stt.keyterm == ["Vonage", "Pipecat"]
+    assert (stt.model, str(stt.language)) == ("nova-3-medical", "it")
+    assert stt.keyterm == ["Melzi", "Sforza"]
     assert llm.model == "gpt-4.1-mini"
-    assert "spoken aloud" in llm.system_instruction
+    assert llm.system_instruction == persona.system_instruction("it")
     assert (tts.model, tts.voice) == ("eleven_multilingual_v2", "OZ0L6eISlOejga3XjDFt")
+    assert str(tts.language) == "it"
 
 
 async def test_microphone_gate_drops_audio_until_open():
@@ -145,8 +148,53 @@ async def test_conversation_starts_once_and_opens_the_microphone(settings, trans
     await agent._begin_once()
     await agent.start_conversation()  # again: ignored
 
-    assert [type(frame) for frame in queued] == [LLMRunFrame]
+    # The fixed greeting, word for word, and nothing the LLM wrote.
+    assert [type(frame) for frame in queued] == [TTSSpeakFrame]
+    assert queued[0].text == persona.LANGUAGES["en"].greeting
+    assert queued[0].interruptible is False
+    assert queued[0].append_to_context is True
     assert agent._gate.open is True
+
+
+async def test_greeting_is_in_the_chosen_language(settings, transport):
+    agent = ModularAgent(
+        with_settings(settings, deepgram_language="it"), CONNECTION, RecordedEvents()
+    )
+    worker = agent.build_pipeline(transport)
+    queued: list = []
+
+    async def record(frames):
+        queued.extend(frames)
+
+    worker.queue_frames = record  # type: ignore[method-assign]
+    agent._worker = worker
+    await agent._begin_once()
+    assert queued[0].text == persona.LANGUAGES["it"].greeting
+
+
+async def test_a_long_silence_gets_a_farewell_then_ends(settings, transport):
+    events = RecordedEvents()
+    agent = ModularAgent(settings, CONNECTION, events)
+    worker = agent.build_pipeline(transport)
+    queued: list = []
+
+    async def record(frames):
+        queued.extend(frames)
+
+    worker.queue_frames = record  # type: ignore[method-assign]
+    agent._worker = worker
+    aggregator = next(
+        p for p in pipeline_processors(worker) if type(p).__name__ == "LLMUserAggregator"
+    )
+    assert aggregator._params.user_idle_timeout == settings.idle_timeout_seconds
+    assert worker._idle_timeout_secs == settings.idle_timeout_seconds + FAREWELL_HEADSTART_SECONDS
+
+    await aggregator._call_event_handler("on_user_turn_idle")
+    await aggregator._call_event_handler("on_user_turn_idle")  # once only
+    await asyncio.sleep(0.05)  # Pipecat runs event handlers as tasks
+    assert [type(f) for f in queued] == [TTSSpeakFrame, EndFrame]
+    assert queued[0].text == persona.LANGUAGES["en"].farewell
+    assert queued[0].interruptible is False
 
 
 @pytest.mark.parametrize(
@@ -204,7 +252,6 @@ def test_short_replies_do_not_interrupt_the_agent(settings, transport):
 def test_waiting_room_choices_reach_the_services(settings, transport):
     custom = with_settings(
         settings,
-        extra_instructions="Answer like a patient tutor.",
         elevenlabs_speed=1.15,
         interrupt_min_words=5,
         vad_stop_secs=0.8,
@@ -212,8 +259,7 @@ def test_waiting_room_choices_reach_the_services(settings, transport):
     worker = ModularAgent(custom, CONNECTION, RecordedEvents()).build_pipeline(transport)
     by_type = {type(p): p for p in pipeline_processors(worker)}
     instruction = by_type[OpenAILLMService]._settings.system_instruction
-    assert instruction.startswith(SYSTEM_INSTRUCTION)  # fixed rules first
-    assert instruction.endswith("Answer like a patient tutor.")
+    assert instruction == persona.system_instruction("en")  # nothing added by the browser
     assert by_type[ElevenLabsTTSService]._settings.speed == 1.15
     aggregator = next(
         p for p in pipeline_processors(worker) if type(p).__name__ == "LLMUserAggregator"

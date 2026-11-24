@@ -1,7 +1,7 @@
 [project]
-name = "blog-video-python-pipecat-modular-voice-agent"
+name = "blog-video-python-pipecat-dinner-with-da-vinci"
 version = "1.0.0"
-description = "A Vonage Video voice agent built from Deepgram, OpenAI, and ElevenLabs with Pipecat."
+description = "Dinner With da Vinci: an AI persona voice agent on Vonage Video with Pipecat."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

@@ -1,6 +1,7 @@
 """FastAPI server: serves the browser app and a small session API.
 
     GET  /api/health                 liveness, no secrets
+    GET  /api/persona                who the agent plays: disclosure, portrait credit
     GET  /api/options                what the waiting room can offer (no secrets)
     POST /api/sessions               create a session with the waiting room's choices
     GET  /api/sessions/{id}          session status            (needs the session key)
@@ -24,17 +25,16 @@ from fastapi import Body, FastAPI, Header, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
+from app import persona
 from app.agent_process import ProcessAgent
 from app.call_options import (
     INTERRUPT_WORDS_RANGE,
     LANGUAGES,
-    MAX_INSTRUCTIONS_CHARS,
     MAX_KEYTERMS_PER_CALL,
     REPLY_PAUSES,
     SPEED_RANGE,
     CallOptions,
     CallOptionsError,
-    VoiceDirectory,
     parse_call_options,
 )
 from app.config import LOG_LEVELS, ConfigError, Settings, load_settings, setup_logging
@@ -91,7 +91,6 @@ def create_app(
         else:
             app.state.config_problems = []
             app.state.settings = loaded
-            app.state.voices = VoiceDirectory(loaded)
             manager = SessionManager(
                 loaded,
                 video or VonageVideo(loaded.vonage_application_id, loaded.vonage_private_key.get()),
@@ -112,7 +111,7 @@ def create_app(
         if manager is not None:
             await manager.shutdown()
 
-    app = FastAPI(title="Vonage + Pipecat modular voice agent", lifespan=lifespan, docs_url=None)
+    app = FastAPI(title="Dinner With da Vinci", lifespan=lifespan, docs_url=None)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:
@@ -147,6 +146,11 @@ def create_app(
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/persona")
+    async def persona_view() -> dict[str, object]:
+        """The disclosure and credits the browser shows, from the same file the agent uses."""
+        return persona.public_view()
 
     @app.post("/api/sessions", status_code=201)
     async def create_session(request: Request) -> dict[str, Any]:
@@ -199,23 +203,20 @@ def create_app(
         """What the waiting room can offer. Contains no keys."""
         manager_of(request)  # 503 with the list of problems if .env isn't complete
         settings: Settings = request.app.state.settings
-        recommended = [
-            {"id": voice_id, "name": name, "description": ""}
+        voices = [{"id": settings.elevenlabs_voice_id, "name": "Your designed voice"}]
+        voices += [
+            {"id": voice_id, "name": name}
             for voice_id, name in settings.elevenlabs_voices
+            if voice_id != settings.elevenlabs_voice_id
         ]
-        yours, status = ([], "unavailable")
-        if settings.agent_mode == "modular":
-            account, status = await request.app.state.voices.account_voices()
-            yours = [{"id": v.id, "name": v.name, "description": v.description} for v in account]
         return {
             "agentMode": settings.agent_mode,
             "defaults": CallOptions.defaults(settings).to_json(),
             "languages": [{"code": c, "name": n} for c, n in LANGUAGES.items()],
             "openaiModels": list(settings.openai_models),
-            "voices": {"recommended": recommended, "yours": yours, "yoursStatus": status},
+            "voices": voices,
             "limits": {
                 "maxKeyterms": MAX_KEYTERMS_PER_CALL,
-                "maxInstructionsChars": MAX_INSTRUCTIONS_CHARS,
                 "voiceSpeed": list(SPEED_RANGE),
                 "interruptMinWords": list(INTERRUPT_WORDS_RANGE),
                 "replyPauses": REPLY_PAUSES,

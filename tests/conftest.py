@@ -12,6 +12,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from app.config import Secret, Settings
 from tests.fakes import APPLICATION_ID
 
+# Shaped like ElevenLabs voice IDs; not real voices.
+DESIGNED_VOICE = "DaVinciDesignedVoice"
+SECOND_VOICE = "SecondTestVoice00000"
+
 
 @pytest.fixture(scope="session")
 def private_key_pem() -> str:
@@ -38,6 +42,7 @@ def valid_env(private_key_file: Path) -> dict[str, str]:
         "DEEPGRAM_API_KEY": "dg-test-not-a-real-key",
         "OPENAI_API_KEY": "sk-test-0123456789abcdef",
         "ELEVENLABS_API_KEY": "sk_test_not_a_real_key",
+        "ELEVENLABS_VOICE_ID": DESIGNED_VOICE,
     }
 
 
@@ -49,6 +54,8 @@ def settings() -> Settings:
         deepgram_api_key=Secret("dg-test-not-a-real-key"),
         openai_api_key=Secret("sk-test-0123456789abcdef"),
         elevenlabs_api_key=Secret("sk_test_not_a_real_key"),
+        elevenlabs_voice_id=DESIGNED_VOICE,
+        elevenlabs_voices=((SECOND_VOICE, "A second voice"),),
         max_active_sessions=1,
         max_session_seconds=600,
         ready_timeout_seconds=60,

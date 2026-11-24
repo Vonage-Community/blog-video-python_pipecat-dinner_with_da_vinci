@@ -40,6 +40,19 @@ def test_health(client):
     assert response.headers["cache-control"] == "no-store"
 
 
+def test_persona_is_public_and_matches_what_the_agent_uses(client):
+    from app import persona
+
+    response = client.get("/api/persona")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["languages"]["en"]["disclosure"] == persona.LANGUAGES["en"].disclosure
+    assert body["languages"]["it"]["banner"] == persona.LANGUAGES["it"].banner
+    portrait = client.get("/" + body["portrait"]["path"])
+    assert portrait.status_code == 200
+    assert portrait.headers["content-type"] == "image/jpeg"
+
+
 def test_serves_the_browser_app(client):
     page = client.get("/")
     assert page.status_code == 200
@@ -185,21 +198,15 @@ def test_shutdown_stops_running_agents(settings, agents):
     assert agents.agents[0].finished
 
 
-def test_options_describe_the_waiting_room_without_secrets(client, monkeypatch):
-    from app.call_options import Voice, VoiceDirectory
-
-    async def fake_voices(self):
-        return [Voice("abcdefghij0123456789", "My Designed Voice", "british")], "ok"
-
-    monkeypatch.setattr(VoiceDirectory, "account_voices", fake_voices)
+def test_options_describe_the_waiting_room_without_secrets(client):
     response = client.get("/api/options")
     assert response.status_code == 200
     body = response.json()
     assert body["defaults"]["openaiModel"] == "gpt-4.1"
     assert body["openaiModels"] == ["gpt-4.1", "gpt-4.1-mini"]
-    assert body["voices"]["recommended"][0]["name"].startswith("Eddie")
-    assert body["voices"]["yours"][0]["name"] == "My Designed Voice"
-    assert body["voices"]["yoursStatus"] == "ok"
+    assert [lang["code"] for lang in body["languages"]] == ["en", "it"]
+    # Only the voices .env lists: the designed voice first, never the account's voices.
+    assert [v["id"] for v in body["voices"]] == ["DaVinciDesignedVoice", "SecondTestVoice00000"]
     text = response.text
     for secret in ("sk-test-0123456789abcdef", "sk_test_not_a_real_key", "dg-test-not-a-real-key"):
         assert secret not in text

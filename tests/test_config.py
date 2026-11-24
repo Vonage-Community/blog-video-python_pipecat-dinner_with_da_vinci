@@ -28,8 +28,10 @@ def test_valid_environment_loads_with_defaults(valid_env):
     assert settings.deepgram_model == "nova-3-general"
     assert settings.deepgram_language == "en"
     assert settings.openai_model == "gpt-4.1"
-    assert settings.elevenlabs_voice_id == "l7kNoIfnJKPg7779LI2t"
+    assert settings.elevenlabs_voice_id == valid_env["ELEVENLABS_VOICE_ID"]
+    assert settings.elevenlabs_voices == ()
     assert settings.elevenlabs_model == "eleven_flash_v2_5"
+    assert settings.elevenlabs_speed == 0.9
     assert settings.deepgram_keyterms == ()
     assert settings.agent_mode == "modular"
     assert settings.max_active_sessions == 1
@@ -39,12 +41,33 @@ def test_valid_environment_loads_with_defaults(valid_env):
 
 def test_every_missing_setting_is_reported_at_once(tmp_path):
     problems = problems_for({"VONAGE_PRIVATE_KEY_PATH": str(tmp_path / "missing.key")})
-    assert len(problems) == 5
+    assert len(problems) == 6
     assert any("VONAGE_APPLICATION_ID is not set" in p for p in problems)
     assert any("No Vonage private key" in p for p in problems)
     assert any("DEEPGRAM_API_KEY is not set" in p for p in problems)
     assert any("OPENAI_API_KEY is not set" in p for p in problems)
-    assert any("ELEVENLABS_API_KEY is not set" in p and "paid plan" in p for p in problems)
+    assert any("ELEVENLABS_API_KEY is not set" in p for p in problems)
+    assert any("ELEVENLABS_VOICE_ID must be the 20-character ID" in p for p in problems)
+
+
+def test_echo_mode_needs_no_voice(valid_env):
+    env = {k: v for k, v in valid_env.items() if k != "ELEVENLABS_VOICE_ID"}
+    assert load_settings({**env, "AGENT_MODE": "echo"}).elevenlabs_voice_id == ""
+
+
+@pytest.mark.parametrize("language", ["es", "en-GB", "fr"])
+def test_only_the_persona_languages_are_accepted(valid_env, language):
+    problems = problems_for({**valid_env, "DEEPGRAM_LANGUAGE": language})
+    assert problems == ["DEEPGRAM_LANGUAGE must be one of en, it"]
+
+
+def test_extra_voices_must_be_id_and_name(valid_env):
+    env = {**valid_env, "ELEVENLABS_VOICES": "SecondTestVoice00000:Second; not-a-voice"}
+    assert problems_for(env) == [
+        "ELEVENLABS_VOICES entries must look like VOICE_ID:Name, separated by ;"
+    ]
+    env["ELEVENLABS_VOICES"] = "SecondTestVoice00000:Second"
+    assert load_settings(env).elevenlabs_voices == (("SecondTestVoice00000", "Second"),)
 
 
 def test_legacy_opentok_api_key_is_explained(valid_env):
@@ -121,7 +144,7 @@ def test_optional_settings_are_read(valid_env):
         {
             **valid_env,
             "DEEPGRAM_MODEL": "nova-3-medical",
-            "DEEPGRAM_LANGUAGE": "en-GB",
+            "DEEPGRAM_LANGUAGE": "it",
             "OPENAI_MODEL": "gpt-4.1-mini",
             "ELEVENLABS_VOICE_ID": "OZ0L6eISlOejga3XjDFt",
             "ELEVENLABS_MODEL": "eleven_multilingual_v2",
@@ -130,7 +153,7 @@ def test_optional_settings_are_read(valid_env):
         }
     )
     assert settings.deepgram_model == "nova-3-medical"
-    assert settings.deepgram_language == "en-GB"
+    assert settings.deepgram_language == "it"
     assert settings.openai_model == "gpt-4.1-mini"
     assert settings.elevenlabs_voice_id == "OZ0L6eISlOejga3XjDFt"
     assert settings.elevenlabs_model == "eleven_multilingual_v2"

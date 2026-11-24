@@ -1,0 +1,16 @@
+app/modular_agent.py
+  h_d5be481ddf6211 361-367
+tests/test_modular_agent.py
+  h_d5be481ddf6211 467-474
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae719ebb6779988913af9bf05ce6627a6445e3f8",
+  "prompts": {},
+  "humans": {
+    "h_d5be481ddf6211": {
+      "author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

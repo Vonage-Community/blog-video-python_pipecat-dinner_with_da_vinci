@@ -1,0 +1,31 @@
+tests/test_modular_agent.py
+  s_ee71d4177b42e7::t_fe38775bbb3e4e 192
+  s_ee71d4177b42e7::t_44d090c6ca89f7 189-191
+  s_ee71d4177b42e7::t_5b5327a069a6fa 193-195
+web/index.html
+  s_ee71d4177b42e7::t_e6ce358aea2ba9 6,15-16,19-29,32-33,36-38,41-42,44-48,51-98,101,105-106,120-122,127,129,131,148,150-152,157,160,162-164,170-172
+tests/test_call_options.py
+  s_ee71d4177b42e7::t_12ae962f11f668 11,25-31,35-36,38,45,48-49,51,63-64,67-72,89
+app/persona.py
+  s_ee71d4177b42e7::t_b388f068e6ffb5 1-175
+tests/test_api.py
+  s_ee71d4177b42e7::t_b495f03ec9bdb1 43-55
+tests/test_persona.py
+  s_ee71d4177b42e7::t_3e6a3ab0866789 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ff31a6047880da07a91b50ef79f40283ee0f6327",
+  "prompts": {},
+  "sessions": {
+    "s_ee71d4177b42e7": {
+      "agent_id": {
+        "tool": "kiro",
+        "id": "sess_9bb2a877-fefe-4f53-aa74-e89d30a1025a",
+        "model": "auto"
+      },
+      "human_author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

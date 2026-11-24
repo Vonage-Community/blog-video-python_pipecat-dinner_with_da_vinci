@@ -99,20 +99,53 @@ show). `vonage apps show` confirms the application now lists `VIDEO`.
 
 ### 2. Design his voice
 
-In the ElevenLabs app, open **Voices → My Voices → Add a new voice → Voice Design** and
+In the ElevenLabs app, open **Voices → My Voices → Create Voice → Voice Design** and
 describe the voice. This is the description used to build the sample:
 
 ```text
-A warm, thoughtful man in his late sixties, speaking English with a natural Italian
-accent. Measured pace, gentle humor, curious, as if talking across a candlelit dinner
-table. Clear and unhurried, never theatrical.
+A warm, expressive Italian man of about 66 years of age, with a native Tuscan accent
+and subtle Florentine inflections. Speaks English with a distinct but easily understood
+Italian accent. A rich, resonant mid-low voice with a slight grain of age, clear vowels,
+gently rolled Rs, and a naturally melodic cadence.
+
+Thoughtful, observant, intellectually curious, and quietly witty. Measured but lively,
+with occasional reflective pauses and a sense of wonder when discovering something new.
+Speaks intimately, as if sharing ideas with a guest across a candlelit dinner table.
+Gentle authority without arrogance. Natural conversational delivery, never theatrical
+or exaggerated. Clean, close, studio-quality audio.
+```
+
+The preview text shapes the voice too, so replace the generated one with a line in
+character. Both of these are original dialogue, not Leonardo quotations:
+
+```text
+Ah, come closer, my friend. Tell me, have you ever watched the way water moves around a
+stone? Such a small thing, and yet there is so much to discover in it. I have spent many
+years observing nature, and still she surprises me. But enough about my work. Tell me
+something of your world. I find myself most curious.
+```
+
+```text
+Ah, vieni, amico mio. Siediti qui, accanto a me. Dimmi, hai mai osservato come l'acqua
+scorre intorno a una pietra? Una cosa così semplice, eppure nasconde tanti segreti. Ho
+trascorso molti anni a osservare la natura, e ancora riesce a sorprendermi. Ma ora
+raccontami qualcosa del tuo mondo. Sono davvero curioso.
 ```
 
 Pick the preview you like, save it, then copy its voice ID (the voice's menu → **Copy
 voice ID**). The description never names Leonardo: it describes a character. Don't
 clone or imitate a real person's voice.
 
-The same voice speaks Italian: the app uses ElevenLabs' multilingual Flash v2.5 model.
+The same voice speaks Italian, because the app uses ElevenLabs' multilingual Flash
+v2.5 model. Multilingual doesn't guarantee the same accent in both languages, so try the
+saved voice in English and Italian before you settle on it.
+
+**Why a Tuscan accent?** Leonardo was born in Vinci, in the Tuscan countryside near
+Florence, and grew up speaking vernacular Tuscan. The sample uses a Tuscan-inspired
+accent as a historical reference point, rather than a generic Italian one. Nobody knows
+what Leonardo's voice sounded like, and an English-speaking Leonardo is entirely
+imagined. The result is a fictional voice for a historically inspired character, not a
+reconstruction or a clone.
 
 ### 3. Configure the app
 

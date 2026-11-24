@@ -15,7 +15,7 @@ and Daniela's review of the Italian.
 | Persona | `app/persona.py` `SYSTEM_INSTRUCTION` | Specific traits instead of adjectives: moves between disciplines in one answer, asks questions back, candid about unfinished work |
 | Knowledge cutoff | same | A date, and what to do with things he can't know: ask how they work |
 | Memory | `LLMContext()` in `ModularAgent.build_pipeline` | Already there; the only decision is what not to keep |
-| Voice | Voice Design prompt (README), `ELEVENLABS_VOICE_ID` | Describe a character, never name the person |
+| Voice | Voice Design prompt and preview text (README), `ELEVENLABS_VOICE_ID` | Describe a character, never name the person. Tuscan accent as a historical reference point (born in Vinci, spoke vernacular Tuscan); custom preview text in character shapes the voice; test the saved voice in both languages |
 | Honest status | `web/index.html`, `renderLiveStatus` in `web/app.js` | Notice before joining, banner, glow, "greeting / speaking / thinking / your turn" |
 | Session lifecycle | `fixed_speech`, `begin_conversation`, `_say_farewell` | Fixed greeting and farewell are code, not prompt |
 

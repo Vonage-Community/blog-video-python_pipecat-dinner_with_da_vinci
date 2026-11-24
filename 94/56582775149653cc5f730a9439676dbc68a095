@@ -1,0 +1,21 @@
+web/app.js
+  s_ee71d4177b42e7::t_dd5490cb890f14 531
+app/persona.py
+  s_ee71d4177b42e7::t_d0fb9b1389b322 43-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9456582775149653cc5f730a9439676dbc68a095",
+  "prompts": {},
+  "sessions": {
+    "s_ee71d4177b42e7": {
+      "agent_id": {
+        "tool": "kiro",
+        "id": "sess_9bb2a877-fefe-4f53-aa74-e89d30a1025a",
+        "model": "auto"
+      },
+      "human_author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

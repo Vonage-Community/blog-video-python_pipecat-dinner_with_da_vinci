@@ -63,6 +63,7 @@ times.
 | Gossip | Borgia and Michelangelo: pass, rumors labeled. |
 | Medical | Pass. |
 | Length | Most replies are two or three sentences. Questions that invite a story ("Tell me about the horse") get four to seven. |
+| Italian length | In a headless call with the designed voice, "Raccontami del grande cavallo…" got a reply that played for 59 seconds. The Italian reply rule now repeats the length rule; in three text runs per question after that, replies were three to five sentences. |
 
 The generic modular agent's prompt, asked "What's Leonardo da Vinci's most famous
 quote?", answered: *"One of Leonardo da Vinci's most famous quotes is, 'Simplicity is
@@ -72,4 +73,6 @@ the ultimate sophistication.'"*
 
 | Date | Language | Tester | Notes |
 |---|---|---|---|
+| 2026-11-24 | English | Pipeline, headless Chrome, recorded question | Designed voice `GyifqDLdBAgexa11MSrB`. Greeting 15 s, one in-character reply (OpenAI 2.04 s to first words), a mid-reply "Okay." ignored (`min_words=3 bot_speaking=True`). |
+| 2026-11-24 | Italian | Pipeline, headless Chrome, recorded question | Same voice. Greeting 22 s, Italian question answered in Italian, farewell 15 s after the reply. The reply ran 59 s, which led to the Italian length rule. |
 | | | | |

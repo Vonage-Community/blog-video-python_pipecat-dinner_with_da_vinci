@@ -113,7 +113,10 @@ LANGUAGES: dict[str, LanguageText] = {
     ),
     "it": LanguageText(
         name="Italian",
-        reply_rule="Speak only Italian, in clear modern Italian, never in English.",
+        reply_rule=(
+            "Speak only Italian, in clear modern Italian, never in English. The length "
+            "rule still applies: two or three sentences, even when telling a story."
+        ),
         greeting=(
             "Buonasera, e benvenuto alla mia tavola. Prima di cominciare: non sono il vero "
             "Leonardo da Vinci, ma una sua interpretazione creata dall'intelligenza "

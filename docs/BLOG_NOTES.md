@@ -4,9 +4,9 @@
 
 **Status (2026-11-24):** builds and passes its automated tests in Linux Docker.
 Headless Chrome calls with a fake microphone, in English and Italian, played the
-greeting, one reply, and the farewell, using an ElevenLabs Default voice (*Roger*) as a
-stand-in. **Not verified yet:** the designed voice, a live conversation with a person,
-and Daniela's review of the Italian.
+greeting, one reply, and the farewell, first with a stand-in voice and then with
+Benjamin's designed voice (`GyifqDLdBAgexa11MSrB`). **Not verified yet:** a live
+conversation with a person, and Daniela's review of the Italian.
 
 ## The six layers, and where each lives
 
@@ -56,9 +56,12 @@ testing caught it. See `docs/PERSONA_TEST.md` for the rest.
   reply), and the idle timer counted from the wrong moment. `pace_audio_to_real_time`
   fixed both. **This also affects the modular agent repo**, which has the 3-word rule
   without pacing.
-- **Flash v2.5 and long Italian text.** The 290-character Italian greeting in one
-  request came back as 87 s of audio that trailed off; per sentence it was 20 s. Fixed
-  lines are sent a sentence at a time.
+- **Flash v2.5 and long Italian text.** With the stand-in Default voice *Roger*, the
+  290-character Italian greeting in one request came back as 87 s of audio that trailed
+  off; per sentence it was 20 s. With the designed voice it was a normal 24.7 s either
+  way, so it depends on the voice. Fixed lines are still sent a sentence at a time.
+- **Italian replies ran long.** One Italian reply played for 59 s; the length rule
+  stated in English didn't carry over. Repeating it in the Italian reply rule fixed it.
 - **"Sixteen eighteen."** Spelled-out years can go wrong; the scene now says how to say
   the year.
 - **Transcript pieces.** Per-sentence fixed lines arrive as several transcript signals;

@@ -441,3 +441,26 @@ def test_fixed_speech_is_one_frame_per_sentence():
         "Prima di cominciare: io sono un'IA.",
         "Va bene?",
     ]
+
+
+def test_a_simli_face_adds_the_avatar_after_the_voice(settings, transport):
+    from pipecat.services.simli.video import SimliVideoService
+
+    from app.config import Secret
+
+    custom = with_settings(
+        settings,
+        simli_api_key=Secret("simli-test-key-123"),
+        simli_face_id="3bad681f-1b4a-4507-bc54-fbc675c191b7",
+    )
+    worker = ModularAgent(custom, CONNECTION, RecordedEvents()).build_pipeline(transport)
+    kinds = [type(p) for p in pipeline_processors(worker)]
+    assert kinds.index(SimliVideoService) == kinds.index(ElevenLabsTTSService) + 1
+    avatar = next(p for p in pipeline_processors(worker) if isinstance(p, SimliVideoService))
+    frame = ErrorFrame("Unable to start connection", processor=avatar)
+    assert failed_stage(frame) == "Avatar (Simli)"
+
+
+def test_no_simli_face_means_no_avatar(settings, transport):
+    worker = ModularAgent(settings, CONNECTION, RecordedEvents()).build_pipeline(transport)
+    assert "SimliVideoService" not in [type(p).__name__ for p in pipeline_processors(worker)]

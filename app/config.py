@@ -64,6 +64,9 @@ class Settings:
     deepgram_api_key: Secret | None = field(repr=False)
     openai_api_key: Secret | None = field(repr=False)
     elevenlabs_api_key: Secret | None = field(repr=False)
+    # Optional: animate his portrait with a Simli avatar. Both empty means a still portrait.
+    simli_api_key: Secret | None = field(default=None, repr=False)
+    simli_face_id: str = ""
     deepgram_model: str = DEFAULT_DEEPGRAM_MODEL
     deepgram_language: str = DEFAULT_DEEPGRAM_LANGUAGE
     # Set per call from the place card; empty means no name was given.
@@ -207,6 +210,23 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         problems.append(f"DEEPGRAM_LANGUAGE must be one of {', '.join(PERSONA_LANGUAGES)}")
         language = DEFAULT_DEEPGRAM_LANGUAGE
 
+    simli_key = text("SIMLI_API_KEY")
+    if simli_key:
+        redact_value(simli_key)
+    simli_face_id = text("SIMLI_FACE_ID")
+    if simli_key and not simli_face_id:
+        problems.append(
+            "SIMLI_FACE_ID is not set. With SIMLI_API_KEY set, the avatar needs the ID of the "
+            "Simli face made from the portrait (see the README), or leave both empty"
+        )
+    elif simli_face_id and not simli_key:
+        problems.append("SIMLI_API_KEY is not set. Set it, or leave SIMLI_FACE_ID empty")
+    elif simli_face_id:
+        try:
+            uuid.UUID(simli_face_id.split("/")[0])
+        except ValueError:
+            problems.append("SIMLI_FACE_ID must be a Simli face ID like 1a2b3c4d-...")
+
     log_level = text("LOG_LEVEL", "INFO").upper()
     if log_level not in LOG_LEVELS:
         problems.append(f"LOG_LEVEL must be one of {', '.join(LOG_LEVELS)}")
@@ -218,6 +238,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         deepgram_api_key=deepgram_api_key,
         openai_api_key=openai_api_key,
         elevenlabs_api_key=elevenlabs_api_key,
+        simli_api_key=Secret(simli_key) if simli_key else None,
+        simli_face_id=simli_face_id,
         deepgram_model=text("DEEPGRAM_MODEL") or DEFAULT_DEEPGRAM_MODEL,
         deepgram_language=language,
         deepgram_keyterms=keyterms,
@@ -298,7 +320,18 @@ def redact(message: str) -> str:
     """Mask API keys, tokens, and private keys in a log line."""
     for pattern, replacement in _REDACTIONS:
         message = pattern.sub(replacement, message)
+    for value in _EXACT_SECRETS:
+        message = message.replace(value, "[redacted]")
     return message
+
+
+# Keys with no recognizable shape (Simli's), masked by value once loaded.
+_EXACT_SECRETS: set[str] = set()
+
+
+def redact_value(value: str) -> None:
+    if len(value) >= 8:
+        _EXACT_SECRETS.add(value)
 
 
 def _write_redacted(message: Any) -> None:

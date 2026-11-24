@@ -13,7 +13,7 @@ dependencies = [
     # Pipecat guide installs it. The extras pull in the Deepgram, OpenAI, and ElevenLabs
     # services and, on Linux only, the native `vonage-video-connector` wheel.
     # See docs/DEPENDENCIES.md.
-    "pipecat-ai[deepgram,elevenlabs,openai,vonage-video-connector]==1.16.0",
+    "pipecat-ai[deepgram,elevenlabs,openai,simli,vonage-video-connector]==1.16.0",
     # Vonage server SDK: creates routed sessions and signs participant tokens.
     "vonage>=4.10.0,<5",
     "fastapi>=0.135,<1",

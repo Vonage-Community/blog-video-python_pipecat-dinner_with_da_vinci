@@ -27,6 +27,7 @@ const ui = {
   youLevel: $('you-level'),
   mutedBadge: $('muted-badge'),
   agentMedia: $('agent-media'),
+  agentVideo: $('agent-video'),
   agentLevel: $('agent-level'),
   agentHearing: $('agent-hearing'),
   agentName: $('agent-name'),
@@ -96,15 +97,7 @@ async function loadPersona() {
   }
   const { portrait, displayName } = room.persona;
   for (const img of [ui.setupPortrait, ui.callPortrait]) img.src = portrait.path;
-  for (const credit of [ui.setupCredit]) {
-    const link = Object.assign(document.createElement('a'), {
-      href: portrait.sourceUrl,
-      textContent: portrait.credit,
-      target: '_blank',
-      rel: 'noopener',
-    });
-    credit.replaceChildren(link);
-  }
+  ui.setupCredit.textContent = portrait.credit;
   ui.agentName.textContent = 'Leonardo';
   ui.agentName.title = displayName;
   renderDisclosure();
@@ -414,6 +407,26 @@ function levelTracker(meter) {
   };
 }
 
+// Calls onLevel about ten times a second with the loudness of a stream's audio.
+function measureAudioLevel(stream, onLevel) {
+  if (!stream?.getAudioTracks().length) return () => {};
+  const context = new AudioContext();
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 1024;
+  context.createMediaStreamSource(stream).connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  const timer = setInterval(() => {
+    analyser.getFloatTimeDomainData(samples);
+    let peak = 0;
+    for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+    onLevel(peak);
+  }, 100);
+  return () => {
+    clearInterval(timer);
+    context.close();
+  };
+}
+
 const youLevel = levelTracker(ui.youLevel);
 const agentLevel = levelTracker(ui.agentLevel);
 
@@ -600,14 +613,18 @@ function onStreamCreated(stream) {
   if (!call || call.agentSubscriber) return;
 
   setStatus('Leonardo has arrived…');
+  // With Simli on the server, his stream has video: a talking portrait in his frame.
+  // Without it, his stream is audio only and the still illustration stays.
+  const avatar = stream.hasVideo;
   const subscriber = call.session.subscribe(
     stream,
-    ui.agentMedia,
+    avatar ? ui.agentVideo : ui.agentMedia,
     {
       insertMode: 'append',
-      width: 1,
-      height: 1,
-      subscribeToVideo: false, // the agent publishes audio only
+      width: avatar ? '100%' : 1,
+      height: avatar ? '100%' : 1,
+      fitMode: 'cover',
+      subscribeToVideo: avatar,
       style: {
         audioBlockedDisplayMode: 'off', // we show our own "enable audio" button
         buttonDisplayMode: 'off',
@@ -627,6 +644,12 @@ function onStreamCreated(stream) {
     },
   );
   call.agentSubscriber = subscriber;
+  subscriber.on('videoElementCreated', (event) => {
+    ui.agentTile.classList.add('live');
+    // With video, the SDK's audioLevelUpdated stayed at 0 in testing, so measure his
+    // voice from the stream itself.
+    call.stopLevelMeter = measureAudioLevel(event.element.srcObject, (level) => agentLevel.update(level));
+  });
   subscriber.on('audioBlocked', offerAudioUnblock);
   subscriber.on('audioUnblocked', () => {
     ui.enableAudio.hidden = true;
@@ -795,6 +818,7 @@ async function endCall(message, isError = false, { serverEnded = false, problems
   clearInterval(ending.poll);
   clearInterval(ending.countdown);
   clearInterval(ending.statusTimer);
+  ending.stopLevelMeter?.();
 
   // Leave the Vonage session right away; stopping the agent can take a few seconds.
   try {
@@ -813,7 +837,8 @@ async function endCall(message, isError = false, { serverEnded = false, problems
   }
 
   call = null;
-  ui.agentTile.classList.remove('speaking');
+  ui.agentTile.classList.remove('speaking', 'live');
+  ui.agentVideo.replaceChildren();
   ui.call.hidden = true;
   ui.setup.hidden = false;
   ui.start.disabled = false;

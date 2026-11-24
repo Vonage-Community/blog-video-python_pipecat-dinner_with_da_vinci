@@ -148,16 +148,13 @@ def greeting(language: str, guest_name: str = "") -> str:
 class Portrait:
     path: str  # served from web/
     credit: str
-    source_url: str
 
 
+# An imagined likeness, painted for this sample: nobody knows exactly how he looked at
+# sixty-six. Shown still, or animated by Simli when SIMLI_API_KEY is set.
 PORTRAIT = Portrait(
-    path="images/leonardo-da-vinci-melzi-portrait.jpg",
-    credit=(
-        "Portrait of Leonardo, attributed to Francesco Melzi, c. 1515 to 1518. "
-        "Royal Collection Trust. Public domain, via Wikimedia Commons."
-    ),
-    source_url="https://commons.wikimedia.org/wiki/File:A_portrait_of_Leonardo,_by_Francesco_Melzi.jpg",
+    path="images/leonardo-da-vinci-illustrated-dinner.jpg",
+    credit="Leonardo, an imagined likeness illustrated with ChatGPT for this sample.",
 )
 
 
@@ -177,11 +174,7 @@ def public_view() -> dict[str, object]:
     return {
         "name": NAME,
         "displayName": DISPLAY_NAME,
-        "portrait": {
-            "path": PORTRAIT.path,
-            "credit": PORTRAIT.credit,
-            "sourceUrl": PORTRAIT.source_url,
-        },
+        "portrait": {"path": PORTRAIT.path, "credit": PORTRAIT.credit},
         "languages": {
             code: {"invitation": text.invitation, "tag": text.tag}
             for code, text in LANGUAGES.items()

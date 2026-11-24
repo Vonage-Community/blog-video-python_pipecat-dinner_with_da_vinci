@@ -59,6 +59,7 @@ from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.llm_service import LLMService
 from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.services.simli.video import SimliVideoService
 from pipecat.services.stt_service import STTService
 from pipecat.services.tts_service import TTSService
 from pipecat.transports.vonage.video_connector import (
@@ -80,6 +81,10 @@ from app.session_manager import AgentConnection, AgentEvents
 # an idle call first, this many seconds earlier.
 FAREWELL_HEADSTART_SECONDS = 30
 
+
+# The avatar's video: square, the smallest size Simli makes larger than its 512 minimum
+# that still looks sharp in the portrait frame.
+AVATAR_VIDEO_SIZE = 768
 
 # How much of the agent's audio to hand the Vonage connector ahead of time, so playback
 # never runs dry between chunks.
@@ -173,6 +178,12 @@ class VonageAgent:
             VonageVideoConnectorTransportParams(
                 audio_in_enabled=True,
                 audio_out_enabled=True,
+                # With a Simli face set, he's a talking portrait; without one, the browser
+                # shows the same illustration as a still image.
+                video_out_enabled=bool(self._settings.simli_face_id),
+                video_out_is_live=True,
+                video_out_width=AVATAR_VIDEO_SIZE,
+                video_out_height=AVATAR_VIDEO_SIZE,
                 # The browser shows this name next to the agent's stream.
                 publisher_name=persona.DISPLAY_NAME,
                 # Subscribe to every audio stream in the session. Only the browser
@@ -272,7 +283,9 @@ class VonageAgent:
             # Services retry dropped connections on their own. Only end the session
             # when a service says it can't continue (a bad key, an unknown model or
             # voice, no credit), so the browser shows why instead of a silent agent.
-            if not frame.fatal and (frame.processor is None or frame.processor.is_usable):
+            # An avatar that can't connect swallows his voice, so it always ends the call.
+            recoverable = frame.processor is None or frame.processor.is_usable
+            if not frame.fatal and recoverable and stage != "Avatar (Simli)":
                 logger.warning(f"{stage} reported a recoverable error: {redact(frame.error)}")
                 return
             self._report_failure(describe_failure(stage, frame))
@@ -308,6 +321,11 @@ _HINTS: dict[str, dict[ErrorCategory, str]] = {
         ErrorCategory.INVALID_REQUEST: "Check OPENAI_MODEL.",
         ErrorCategory.QUOTA: "Your OpenAI API account is out of credit.",
     },
+    "Avatar (Simli)": {
+        ErrorCategory.AUTHENTICATION: "Check SIMLI_API_KEY.",
+        ErrorCategory.INVALID_REQUEST: "Check SIMLI_FACE_ID.",
+        ErrorCategory.QUOTA: "Your Simli account is out of minutes.",
+    },
     "Text-to-speech (ElevenLabs)": {
         ErrorCategory.AUTHENTICATION: "Check ELEVENLABS_API_KEY.",
         ErrorCategory.AUTHORIZATION: (
@@ -329,6 +347,8 @@ def failed_stage(frame: ErrorFrame) -> str:
         return "LLM (OpenAI)"
     if isinstance(processor, TTSService):
         return "Text-to-speech (ElevenLabs)"
+    if isinstance(processor, SimliVideoService):
+        return "Avatar (Simli)"
     return "Vonage Video"
 
 
@@ -481,6 +501,9 @@ class ModularAgent(VonageAgent):
             stages, total = stage_latency(breakdown)
             self._events.latency(stages, total)
 
+        # Optional: Simli turns his voice into a talking portrait, video and voice in sync.
+        avatar = [self._avatar()] if settings.simli_face_id else []
+
         pipeline = Pipeline(
             [
                 transport.input(),
@@ -489,6 +512,7 @@ class ModularAgent(VonageAgent):
                 user_aggregator,
                 llm,
                 tts,
+                *avatar,
                 transport.output(),
                 assistant_aggregator,
             ]
@@ -501,6 +525,20 @@ class ModularAgent(VonageAgent):
             processor_unusable_policy=ProcessorUnusablePolicy.END,
             # The browser follows the call through Vonage events, not Pipecat's RTVI protocol.
             enable_rtvi=False,
+        )
+
+    def _avatar(self) -> SimliVideoService:
+        settings = self._settings
+        assert settings.simli_api_key
+        return SimliVideoService(
+            api_key=settings.simli_api_key.get(),
+            face_id=settings.simli_face_id,
+            # Simli ends its own session too, so it can't outlive the dinner.
+            max_session_length=settings.max_session_seconds,
+            max_idle_time=settings.idle_timeout_seconds + FAREWELL_HEADSTART_SECONDS,
+            framing=SimliVideoService.Framing(
+                streaming_width=AVATAR_VIDEO_SIZE, streaming_height=AVATAR_VIDEO_SIZE
+            ),
         )
 
     def _send_transcript(self, role: str, text: str, interrupted: bool = False) -> None:

@@ -75,7 +75,7 @@ def test_public_view_has_the_invitation_and_an_existing_portrait():
     assert set(view["languages"]) == {"en", "it"}  # type: ignore[arg-type]
     portrait = view["portrait"]
     assert (WEB_DIR / portrait["path"]).is_file()  # type: ignore[index]
-    assert "Public domain" in portrait["credit"]  # type: ignore[index]
+    assert "imagined likeness" in portrait["credit"]  # type: ignore[index]
 
 
 def test_never_called_leonardo_ai():

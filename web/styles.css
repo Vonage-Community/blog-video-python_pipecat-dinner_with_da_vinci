@@ -532,6 +532,16 @@ button.link {
 }
 
 /* While his voice plays, the candlelight on his portrait warms. Nothing moves. */
+/* The talking avatar replaces the still portrait once its video arrives. */
+.avatar-video {
+  position: absolute;
+  inset: 0;
+}
+
+.frame.host.live img {
+  visibility: hidden;
+}
+
 .frame.host.speaking {
   box-shadow:
     0 0 0 1px #5e4416,

@@ -231,3 +231,43 @@ def test_keyterms_are_split_and_trimmed(valid_env):
 def test_too_many_keyterms_are_rejected(valid_env):
     terms = ",".join(f"term{i}" for i in range(51))
     assert "at most 50" in problems_for({**valid_env, "DEEPGRAM_KEYTERMS": terms})[0]
+
+
+FACE_ID = "3bad681f-1b4a-4507-bc54-fbc675c191b7"
+
+
+def test_no_simli_settings_means_a_still_portrait(valid_env):
+    settings = load_settings(valid_env)
+    assert settings.simli_api_key is None
+    assert settings.simli_face_id == ""
+
+
+def test_simli_key_and_face_load_together(valid_env):
+    settings = load_settings(
+        {**valid_env, "SIMLI_API_KEY": "simli-test-key-123", "SIMLI_FACE_ID": FACE_ID}
+    )
+    assert settings.simli_api_key is not None
+    assert settings.simli_face_id == FACE_ID
+    assert "simli-test-key-123" not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"SIMLI_API_KEY": "simli-test-key-123"}, "SIMLI_FACE_ID is not set"),
+        ({"SIMLI_FACE_ID": FACE_ID}, "SIMLI_API_KEY is not set"),
+        (
+            {"SIMLI_API_KEY": "simli-test-key-123", "SIMLI_FACE_ID": "nope"},
+            "must be a Simli face ID",
+        ),
+    ],
+)
+def test_simli_settings_must_come_as_a_pair(valid_env, env, message):
+    assert any(message in p for p in problems_for({**valid_env, **env}))
+
+
+def test_the_simli_key_is_redacted_from_logs(valid_env):
+    from app.config import redact
+
+    load_settings({**valid_env, "SIMLI_API_KEY": "simli-test-key-123", "SIMLI_FACE_ID": FACE_ID})
+    assert redact("connecting with simli-test-key-123 now") == "connecting with [redacted] now"

@@ -464,3 +464,11 @@ def test_a_simli_face_adds_the_avatar_after_the_voice(settings, transport):
 def test_no_simli_face_means_no_avatar(settings, transport):
     worker = ModularAgent(settings, CONNECTION, RecordedEvents()).build_pipeline(transport)
     assert "SimliVideoService" not in [type(p).__name__ for p in pipeline_processors(worker)]
+
+
+def test_silent_elevenlabs_points_at_credits():
+    message = describe_failure(
+        "Text-to-speech (ElevenLabs)",
+        ErrorFrame("3 consecutive TTS contexts completed with no audio"),
+    )
+    assert "out of credits" in message

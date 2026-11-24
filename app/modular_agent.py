@@ -358,6 +358,13 @@ _HEADERS = re.compile(r"headers: \{.*?\},?\s*")
 
 def describe_failure(stage: str, frame: ErrorFrame) -> str:
     hint = _HINTS.get(stage, {}).get(frame.category, "") if frame.category else ""
+    # When an ElevenLabs account runs out of credits, its WebSocket sends no audio and
+    # Pipecat only sees silence, so the error doesn't say why.
+    if stage == "Text-to-speech (ElevenLabs)" and "no audio" in frame.error and not hint:
+        hint = (
+            "This usually means the ElevenLabs account is out of credits: check its usage "
+            "page. The free plan has 10,000 credits a month."
+        )
     error = _HEADERS.sub("", redact(frame.error))
     return " ".join(part for part in (f"{stage} failed: {error}", hint) if part)
 

@@ -103,17 +103,15 @@ In the ElevenLabs app, open **Voices → My Voices → Create Voice → Voice De
 describe the voice. This is the description used to build the sample:
 
 ```text
-A warm, expressive Italian man of about 66 years of age, with a native Tuscan accent
-and subtle Florentine inflections. Speaks English with a distinct but easily understood
-Italian accent. A rich, resonant mid-low voice with a slight grain of age, clear vowels,
-gently rolled Rs, and a naturally melodic cadence.
-
-Thoughtful, observant, intellectually curious, and quietly witty. Measured but lively,
-with occasional reflective pauses and a sense of wonder when discovering something new.
-Speaks intimately, as if sharing ideas with a guest across a candlelit dinner table.
-Gentle authority without arrogance. Natural conversational delivery, never theatrical
-or exaggerated. Clean, close, studio-quality audio.
+A warm, expressive 66-year-old Italian man with a native Tuscan accent and subtle
+Florentine inflections. English with a distinct, intelligible Italian accent. Rich,
+resonant mid-low voice, slightly grainy with age, clear vowels, gently rolled Rs,
+melodic cadence. Intellectually curious, observant, quietly witty. Measured yet lively,
+with reflective pauses and gentle authority. Intimate conversation across a candlelit
+dinner table. Natural, never theatrical. Studio-quality audio.
 ```
+
+Voice Design accepts at most 500 characters, and this description is 484.
 
 The preview text shapes the voice too, so replace the generated one with a line in
 character. Both of these are original dialogue, not Leonardo quotations:

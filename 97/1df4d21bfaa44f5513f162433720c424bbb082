@@ -1,0 +1,20 @@
+app/persona.py
+  h_d5be481ddf6211 116-119
+docs/BLOG_NOTES.md
+  h_d5be481ddf6211 7-9,59-64
+docs/DEPENDENCIES.md
+  h_d5be481ddf6211 95
+docs/PERSONA_TEST.md
+  h_d5be481ddf6211 66,76-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "971df4d21bfaa44f5513f162433720c424bbb082",
+  "prompts": {},
+  "humans": {
+    "h_d5be481ddf6211": {
+      "author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

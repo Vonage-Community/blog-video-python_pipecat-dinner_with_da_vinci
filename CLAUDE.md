@@ -26,7 +26,8 @@ Video*. This repository is the companion to a tutorial and must keep matching it
 - **Disputed facts** are acknowledged, not settled. Gossip is documented or labeled
   rumor, never invented.
 - **Voice:** a Voice Design voice, never a clone, and never described as Leonardo's.
-- **Portrait:** the public-domain Melzi drawing, static, with its credit shown.
+- **Portrait:** an illustrated, clearly painted likeness (ChatGPT), credited as imagined.
+  Still by default; a Simli talking portrait only when `SIMLI_FACE_ID` is set.
 - Never write "Leonardo AI" (Leonardo.Ai is a Canva product).
 - The browser can't add instructions: `app/call_options.py` rejects them.
 - Daniela reviews any change to the Italian text.

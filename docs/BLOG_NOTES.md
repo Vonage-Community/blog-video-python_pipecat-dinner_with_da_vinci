@@ -84,5 +84,6 @@ testing caught it. See `docs/PERSONA_TEST.md` for the rest.
 - Pipecat: https://docs.pipecat.ai
 - ElevenLabs Voice Design: https://elevenlabs.io/docs/eleven-creative/voices/voice-design
 - Quote Investigator, "Simplicity is the ultimate sophistication": https://quoteinvestigator.com/2015/04/02/simple/
-- Portrait: https://commons.wikimedia.org/wiki/File:A_portrait_of_Leonardo,_by_Francesco_Melzi.jpg
+- Portrait: an imagined likeness Benjamin illustrated with ChatGPT (`web/images/leonardo-da-vinci-illustrated-dinner.jpg`)
+- Simli Trinity-2 faces: https://docs.simli.com/api-reference/trinity-2
 - Related, optional: the modular agent post and the OpenAI Realtime post (links once published)

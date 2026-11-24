@@ -377,15 +377,14 @@ docs/                  persona test questions, manual test plan, dependency note
 
 ## License, privacy and attributions
 
-[MIT](LICENSE), except the portrait. This repository started from a copy of
+[MIT](LICENSE). This repository started from a copy of
 [blog-video-python_pipecat-modular_voice_agent](https://github.com/Vonage-Community/blog-video-python_pipecat-modular_voice_agent)
 (MIT, © Vonage). Pipecat is BSD-2-Clause, © Daily. The Vonage Video Web SDK and Video
 Connector are used under [Vonage's terms](https://www.vonage.com/legal/communications-apis/terms-of-use/).
 
-**Portrait:** `web/images/leonardo-da-vinci-melzi-portrait.jpg` is *A portrait of
-Leonardo*, attributed to Francesco Melzi, c. 1515 to 1518, Royal Collection Trust,
-reproduced from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:A_portrait_of_Leonardo,_by_Francesco_Melzi.jpg),
-where it is in the public domain. It isn't covered by the MIT license.
+**Portrait:** `web/images/leonardo-da-vinci-illustrated-dinner.jpg` is an imagined likeness
+of Leonardo, illustrated with ChatGPT for this sample. Nobody knows exactly how he looked
+at sixty-six.
 
 **Privacy:** during a call your microphone audio travels through Vonage Video to the
 agent container and on to Deepgram. The conversation's text goes to OpenAI, and his

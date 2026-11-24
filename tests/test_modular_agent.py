@@ -151,11 +151,9 @@ async def test_conversation_starts_once_and_opens_the_microphone(settings, trans
     await agent._begin_once()
     await agent.start_conversation()  # again: ignored
 
-    # The fixed greeting, word for word, one sentence per frame, and nothing the LLM wrote.
-    assert {type(frame) for frame in queued} == {TTSSpeakFrame}
-    assert " ".join(f.text for f in queued) == persona.greeting("en")
-    assert len(queued) == 3
-    assert all(f.interruptible is False and f.append_to_context is True for f in queued)
+    # The fixed greeting, word for word, and nothing the LLM wrote.
+    assert [type(frame) for frame in queued] == [TTSSpeakFrame]
+    assert queued[0].text == persona.greeting("en")
     assert agent._gate.open is True
 
 
@@ -214,11 +212,18 @@ async def test_a_long_silence_gets_a_farewell_then_ends(settings, transport):
     await aggregator._call_event_handler("on_user_turn_idle")
     await aggregator._call_event_handler("on_user_turn_idle")  # once only
     await asyncio.sleep(0.05)  # Pipecat runs event handlers as tasks
-    assert type(queued[-1]) is EndFrame  # after the farewell, never before it
-    speech = queued[:-1]
-    assert {type(f) for f in speech} == {TTSSpeakFrame}
-    assert " ".join(f.text for f in speech) == persona.LANGUAGES["en"].farewell
-    assert all(f.interruptible is False for f in speech)
+    assert [type(f) for f in queued] == [TTSSpeakFrame]
+    assert queued[0].text == persona.LANGUAGES["en"].farewell
+
+    # The call ends only once the farewell's turn has finished playing, and only once.
+    assistant = next(
+        p for p in pipeline_processors(worker) if type(p).__name__ == "LLMAssistantAggregator"
+    )
+    farewell = SimpleNamespace(content=persona.LANGUAGES["en"].farewell, interrupted=False)
+    await assistant._call_event_handler("on_assistant_turn_stopped", farewell)
+    await assistant._call_event_handler("on_assistant_turn_stopped", farewell)
+    await asyncio.sleep(0.05)
+    assert [type(f) for f in queued] == [TTSSpeakFrame, EndFrame]
 
 
 @pytest.mark.parametrize(
@@ -434,13 +439,11 @@ async def test_audio_is_handed_over_at_playing_speed():
     assert len(written) == 10
 
 
-def test_fixed_speech_is_one_frame_per_sentence():
-    frames = fixed_speech("Buonasera. Prima di cominciare: io sono un'IA. Va bene?")
-    assert [f.text for f in frames] == [
-        "Buonasera.",
-        "Prima di cominciare: io sono un'IA.",
-        "Va bene?",
-    ]
+def test_fixed_speech_is_word_for_word_and_uninterruptible():
+    frame = fixed_speech("Buonasera. Prima di cominciare: io sono un'IA. Va bene?")
+    assert frame.text == "Buonasera. Prima di cominciare: io sono un'IA. Va bene?"
+    assert frame.interruptible is False
+    assert frame.append_to_context is True
 
 
 def test_a_simli_face_adds_the_avatar_after_the_voice(settings, transport):

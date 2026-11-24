@@ -17,10 +17,14 @@ Not tagged yet: waiting for the live manual and persona tests with a designed vo
 - English with an Italian accent, or Italian, chosen per call. The language sets
   Deepgram, the reply language, ElevenLabs' language, and the fixed lines.
 - A fixed, non-interruptible greeting that discloses he's an AI portrayal, and a fixed
-  farewell after a long silence, both spoken a sentence at a time.
+  farewell after a long silence.
 - A join screen with the disclosure, a banner for the whole call, the public-domain
   Melzi portrait with its credit, a glow while he speaks, and an honest status line.
 - `GET /api/persona`, so the browser shows the same text the server enforces.
+- An illustrated portrait (an imagined likeness made with ChatGPT), shown still, or as a
+  talking portrait with Simli when `SIMLI_API_KEY` and `SIMLI_FACE_ID` are set.
+- A dinner design: an invitation with a place card, a candlelit table, and one light
+  disclosure line plus a tag on his frame. The greeting uses the guest's name.
 - The browser can't add instructions or pick a voice that isn't in `.env`.
 - `ELEVENLABS_VOICE_ID` is required and has no default: readers design their own voice.
 - Audio is handed to the Vonage connector at playing speed, so Pipecat's "bot is

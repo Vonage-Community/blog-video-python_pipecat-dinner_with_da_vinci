@@ -59,7 +59,8 @@ testing caught it. See `docs/PERSONA_TEST.md` for the rest.
 - **Flash v2.5 and long Italian text.** With the stand-in Default voice *Roger*, the
   290-character Italian greeting in one request came back as 87 s of audio that trailed
   off; per sentence it was 20 s. With the designed voice it was a normal 24.7 s either
-  way, so it depends on the voice. Fixed lines are still sent a sentence at a time.
+  way, so it depended on the stand-in voice. Fixed lines went back to one frame each,
+  because one frame per sentence broke the Simli avatar mode.
 - **Italian replies ran long.** One Italian reply played for 59 s; the length rule
   stated in English didn't carry over. Repeating it in the Italian reply rule fixed it.
 - **"Sixteen eighteen."** Spelled-out years can go wrong; the scene now says how to say

@@ -52,7 +52,9 @@ docker compose up --build                    # run the app on http://localhost:8
 - `pace_audio_to_real_time` must stay until the Vonage transport paces audio itself:
   without it, Pipecat thinks the bot stopped speaking about a second into each reply,
   so one word interrupts and the idle timer starts mid-reply.
-- Fixed lines go to ElevenLabs a sentence at a time (`fixed_speech`).
+- Fixed lines are one `TTSSpeakFrame` each (`fixed_speech`). Splitting them into one
+  frame per sentence broke the Simli avatar: its service swallows `TTSStoppedFrame`, and
+  back-to-back fixed frames left the turn bookkeeping cut short.
 - `MicrophoneGate` drops audio until `POST /ready`; the greeting is sent once.
 - The farewell uses the user aggregator's `user_idle_timeout`; the worker's idle
   timeout is 30 s longer as a backstop.

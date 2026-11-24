@@ -92,7 +92,21 @@ the real classes:
 | Connector instances | The Video Connector guide allows one connector instance per process. | One OS process per session (`app/agent_process.py`). |
 | Routed sessions | Required by the project brief; Kitt Phi's tested tutorial uses routed sessions. | Always routed. |
 | When the bot stops speaking | `VonageVideoConnectorOutputTransport.write_audio_frame` calls the native `add_audio`, which buffers and returns at once. A 30-second reply reached the connector in about 1.1 s, and Pipecat logged *Bot stopped speaking* then, while the browser played it for 30 s more (measured 2026-11-24). `MinWordsUserTurnStartStrategy` then saw a silent bot and let one word interrupt, and the idle timer started mid-reply. Pipecat's websocket transports pace with `_write_audio_sleep`. | `pace_audio_to_real_time()` in `app/modular_agent.py` waits for each chunk's playing time, keeping 0.2 s ahead. Afterwards, *Bot stopped speaking* came within a second of the browser's audio ending, and "Okay." no longer interrupted. |
-| Long fixed text to Flash v2.5 | The ElevenLabs API returned 87 s of audio for the 290-character Italian greeting in one request (Default voice *Roger*, with or without `language_code`, at speed 0.9 or 1.0); `eleven_multilingual_v2` returned 21 s. Each sentence alone came back at its normal length (2.8 s, 12.5 s, 4.2 s). | `fixed_speech()` sends one `TTSSpeakFrame` per sentence, the way LLM replies arrive. With the sample's designed voice, the whole Italian greeting came back at a normal 24.7 s, so the problem depends on the voice; per-sentence stays because it costs nothing. |
+| Long fixed text to Flash v2.5 | With the stand-in Default voice *Roger*, one 290-character Italian request returned 87 s of audio; each sentence alone was normal. With the sample's designed voice, the whole greeting was a normal 24.7 s. | Each fixed line is one `TTSSpeakFrame`. One frame per sentence was tried, and it broke the Simli avatar mode (see below). |
+
+## The optional Simli avatar
+
+- `pipecat-ai[simli]` adds `simli-ai` 2.1.1 (and its WebRTC dependencies). `SimliVideoService`
+  sits after ElevenLabs, sends his audio to Simli, and pushes Simli's video and audio, in
+  sync, in place of it. It doesn't pass `TTSStoppedFrame` on, so the output transport ends
+  bot speech on its 3-second silence fallback instead.
+- With three back-to-back fixed `TTSSpeakFrame`s (the greeting split by sentence), the
+  assistant turn ended after the first sentence, ElevenLabs logged "TTS context …
+  completed" errors, later reply audio was lost, and a one-word "Okay." interrupted
+  (2026-11-24, preset face *Victor*). With one frame per fixed line, the greeting and a
+  38-second reply played in full and "Okay." logged `should_trigger=False … bot_speaking=True`.
+- The browser SDK's `audioLevelUpdated` stayed at 0 for the video subscriber, so the page
+  measures his level from the stream with an `AnalyserNode`.
 
 ## Platforms
 

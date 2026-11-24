@@ -113,22 +113,15 @@ def pace_audio_to_real_time(transport: VonageVideoConnectorTransport) -> None:
     output.write_audio_frame = paced_write  # type: ignore[attr-defined]
 
 
-def fixed_speech(text: str) -> list[TTSSpeakFrame]:
+def fixed_speech(text: str) -> TTSSpeakFrame:
     """Words spoken exactly as written, which talking over can't cut short.
 
     The LLM never sees a request to write them, so it can't leave anything out. They are
     still added to the conversation, so the model knows what was said.
-
-    One frame per sentence, the way the LLM's replies reach ElevenLabs. In testing, Flash
-    v2.5 turned the whole Italian greeting, sent at once, into 87 seconds of audio that
-    trailed off into noise; sentence by sentence it was 20 seconds and clean.
     """
-    frames = []
-    for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
-        frame = TTSSpeakFrame(sentence, append_to_context=True)
-        frame.interruptible = False
-        frames.append(frame)
-    return frames
+    frame = TTSSpeakFrame(text, append_to_context=True)
+    frame.interruptible = False
+    return frame
 
 
 def connection_role(client: dict[str, Any]) -> str | None:
@@ -159,6 +152,7 @@ class VonageAgent:
         self._joined = False
         self._failure_reported = False
         self._said_farewell = False
+        self._ended = False
 
     def build_pipeline(self, transport: VonageVideoConnectorTransport) -> PipelineWorker:
         raise NotImplementedError
@@ -498,6 +492,8 @@ class ModularAgent(VonageAgent):
             # Built from ElevenLabs' word timestamps, so after an interruption it holds
             # only the words that played.
             self._send_transcript("agent", message.content, interrupted=message.interrupted)
+            if self._said_farewell:
+                await self._end_after_farewell()
 
         # Logs, for each reply, how long you waited and which stage the time went to.
         latency = UserBotLatencyObserver()
@@ -561,7 +557,7 @@ class ModularAgent(VonageAgent):
         # The disclosure is guaranteed in code, not left to the model: every call opens
         # with these exact words, before the LLM has said anything.
         greeting = persona.greeting(self._settings.deepgram_language, self._settings.guest_name)
-        await worker.queue_frames(fixed_speech(greeting))
+        await worker.queue_frames([fixed_speech(greeting)])
 
     async def _say_farewell(self) -> None:
         if self._said_farewell or self._worker is None:
@@ -569,8 +565,15 @@ class ModularAgent(VonageAgent):
         self._said_farewell = True
         logger.info("The guest has been quiet too long: saying goodbye")
         farewell = persona.LANGUAGES[self._settings.deepgram_language].farewell
-        # EndFrame waits behind the farewell's audio, so the pipeline ends after it plays.
-        await self._worker.queue_frames([*fixed_speech(farewell), EndFrame()])
+        await self._worker.queue_frames([fixed_speech(farewell)])
+
+    async def _end_after_farewell(self) -> None:
+        # Only once his last word has played: an EndFrame queued straight behind the
+        # farewell reached the Simli avatar while it was still speaking and cut it off.
+        if self._ended or self._worker is None:
+            return
+        self._ended = True
+        await self._worker.queue_frames([EndFrame()])
 
 
 class MicrophoneEcho(FrameProcessor):

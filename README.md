@@ -235,6 +235,8 @@ All settings live in `.env`; [`.env.example`](.env.example) documents each one.
 | `ELEVENLABS_VOICE_ID` | (required) | Your Voice Design voice |
 | `ELEVENLABS_MODEL` | `eleven_flash_v2_5` | Multilingual text-to-speech model |
 | `ELEVENLABS_VOICES` | (empty) | Extra voices the panel may offer, as `VOICE_ID:Name;…` |
+| `SIMLI_API_KEY` | (empty) | Optional: a Simli key, for the talking portrait |
+| `SIMLI_FACE_ID` | (empty) | Optional: the Simli face made from the portrait. Set both or neither. |
 | `AGENT_MODE` | `modular` | `echo` is a no-provider diagnostic |
 | `MAX_ACTIVE_SESSIONS` | `1` | Concurrent sessions (1 to 5) |
 | `MAX_SESSION_SECONDS` | `600` | Hard limit per dinner |
@@ -251,6 +253,42 @@ characters and three words (letters, spaces, hyphens, apostrophes), and the prom
 treats it only as a name. There's deliberately no box for extra
 instructions: the persona's rules are fixed on the server, and the server rejects
 instructions, unlisted voices, and other languages.
+
+## Optional: a talking portrait with Simli
+
+By default his portrait is a still illustration. With a [Simli](https://www.simli.com)
+account, he becomes a talking portrait: Simli turns his voice into video of the
+illustration speaking, and the agent publishes that video into the Vonage session. The
+tutorial doesn't need it, and the rest of the app works the same either way.
+
+1. Make a Simli face from the portrait. Simli builds it from one image of a person facing
+   the camera; it needs a paid plan with a Trinity-2 generation, and it takes about four
+   hours:
+
+   ```bash
+   curl -X POST "https://api.simli.ai/faces/trinity?face_name=leonardo" \
+     -H "x-simli-api-key: $SIMLI_API_KEY" \
+     -F "image=@web/images/leonardo-da-vinci-illustrated-dinner.jpg"
+   ```
+
+   Copy the `face_id` from the response, then check on it until `status` is `completed`:
+
+   ```bash
+   curl "https://api.simli.ai/faces/trinity/generation_status?face_id=<FACE_ID>" \
+     -H "x-simli-api-key: $SIMLI_API_KEY"
+   ```
+
+2. Add both values to `.env` and restart:
+
+   ```dotenv
+   SIMLI_API_KEY=your-simli-key
+   SIMLI_FACE_ID=your-face-id
+   ```
+
+To try the mode before your face is ready, use one of Simli's
+[default faces](https://docs.simli.com/api-reference/preset-faces), such as Victor
+(`3bad681f-1b4a-4507-bc54-fbc675c191b7`). Simli bills per minute, and each reply takes
+about half a second longer.
 
 ## Build your own character
 
@@ -272,6 +310,7 @@ and about quotes, and check the rights to any name, image, and voice you use.
 | **Vonage refused the request (403)** | Turn on Video: `vonage apps capabilities update <APPLICATION_ID> video > /dev/null`. |
 | Deepgram mishears names (Sforza, Melzi, Milan) | Add them to `DEEPGRAM_KEYTERMS` and restart. Keyterms are a small per-minute add-on. |
 | He interrupts himself | Use headphones; he hears your speakers otherwise. |
+| **Avatar (Simli) failed** | Check `SIMLI_API_KEY` and `SIMLI_FACE_ID`, and that the face's generation has `completed`. Remove both to go back to the still portrait. |
 | `ModuleNotFoundError: vonage_video_connector` | The connector ships Linux wheels only; use `docker compose up`. |
 | **Microphone access is blocked** | Allow the microphone in the browser's site settings, and use `http://localhost:8000`. |
 | **Your browser blocked audio playback** | Click **Enable audio**. |
@@ -291,14 +330,13 @@ and about quotes, and check the rights to any name, image, and voice you use.
   Deepgram bills audio time, OpenAI bills tokens, and ElevenLabs bills characters. The
   defaults cap a dinner at 10 minutes and one at a time.
 - **Nothing is recorded.** The app stores no audio, video, or transcripts.
-- **He only listens.** He doesn't see your camera, and his portrait doesn't move.
-- **Two workarounds, at the time of writing:**
+- **He only listens.** He doesn't see your camera. His portrait is still unless you
+  add a Simli face.
+- **A workaround, at the time of writing:**
   - The Vonage transport hands audio to the native connector faster than it plays, so
     Pipecat thinks he has stopped talking while you still hear him. `pace_audio_to_real_time`
     in `app/modular_agent.py` waits for each chunk's playing time, so the three-word
     interruption rule and the farewell timer follow what you hear.
-  - Fixed lines are sent to ElevenLabs a sentence at a time. Sent whole, the Italian
-    greeting came back as 87 seconds of audio that trailed off into noise.
 
 ## Cleanup
 

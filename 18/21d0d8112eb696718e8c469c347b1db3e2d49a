@@ -1,0 +1,14 @@
+README.md
+  h_d5be481ddf6211 106-111,114-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1821d0d8112eb696718e8c469c347b1db3e2d49a",
+  "prompts": {},
+  "humans": {
+    "h_d5be481ddf6211": {
+      "author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

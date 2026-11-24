@@ -87,14 +87,11 @@ AUDIO_LEAD_SECONDS = 0.2
 
 
 def pace_audio_to_real_time(transport: VonageVideoConnectorTransport) -> None:
-    """Make Pipecat's "bot is speaking" match what the guest hears.
+    """Hand the agent's audio to the Vonage connector at playing speed.
 
-    At the time of writing, the Vonage transport hands each audio chunk to the native
-    connector, which buffers it and returns at once. A whole reply is handed over in about
-    a second, so Pipecat decides the bot stopped speaking while the guest still hears it
-    for many seconds more. Rules that depend on it then misfire: one word interrupts
-    instead of three, and the idle timer starts during the reply. Waiting for each chunk's
-    playing time keeps the two clocks together, the way Pipecat's websocket transports do.
+    At the time of writing, the transport hands each chunk over at once and the native
+    connector buffers it, so Pipecat thinks the agent stopped talking about a second
+    into each reply, while you still hear it. See the README.
     """
     output = transport.output()
     write = output.write_audio_frame  # type: ignore[attr-defined]

@@ -1,0 +1,18 @@
+CLAUDE.md
+  h_d5be481ddf6211 29-30
+README.md
+  h_d5be481ddf6211 380,385-387
+docs/BLOG_NOTES.md
+  h_d5be481ddf6211 87-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ba09fd667e47db705afffde5b3d7753634104b9",
+  "prompts": {},
+  "humans": {
+    "h_d5be481ddf6211": {
+      "author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

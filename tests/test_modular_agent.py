@@ -153,7 +153,7 @@ async def test_conversation_starts_once_and_opens_the_microphone(settings, trans
 
     # The fixed greeting, word for word, one sentence per frame, and nothing the LLM wrote.
     assert {type(frame) for frame in queued} == {TTSSpeakFrame}
-    assert " ".join(f.text for f in queued) == persona.LANGUAGES["en"].greeting
+    assert " ".join(f.text for f in queued) == persona.greeting("en")
     assert len(queued) == 3
     assert all(f.interruptible is False and f.append_to_context is True for f in queued)
     assert agent._gate.open is True
@@ -172,7 +172,26 @@ async def test_greeting_is_in_the_chosen_language(settings, transport):
     worker.queue_frames = record  # type: ignore[method-assign]
     agent._worker = worker
     await agent._begin_once()
-    assert " ".join(f.text for f in queued) == persona.LANGUAGES["it"].greeting
+    assert " ".join(f.text for f in queued) == persona.greeting("it")
+
+
+async def test_greeting_and_prompt_use_the_place_card_name(settings, transport):
+    custom = with_settings(settings, guest_name="Benjamin")
+    agent = ModularAgent(custom, CONNECTION, RecordedEvents())
+    worker = agent.build_pipeline(transport)
+    queued: list = []
+
+    async def record(frames):
+        queued.extend(frames)
+
+    worker.queue_frames = record  # type: ignore[method-assign]
+    agent._worker = worker
+    await agent._begin_once()
+    assert queued[0].text.startswith("Buonasera, Benjamin, and welcome")
+    by_type = {type(p): p for p in pipeline_processors(worker)}
+    assert (
+        "Your guest's name is Benjamin." in by_type[OpenAILLMService]._settings.system_instruction
+    )
 
 
 async def test_a_long_silence_gets_a_farewell_then_ends(settings, transport):

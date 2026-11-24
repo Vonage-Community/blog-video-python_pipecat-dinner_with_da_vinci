@@ -414,7 +414,9 @@ class ModularAgent(VonageAgent):
             api_key=settings.openai_api_key.get(),
             settings=OpenAILLMService.Settings(
                 model=settings.openai_model,
-                system_instruction=persona.system_instruction(settings.deepgram_language),
+                system_instruction=persona.system_instruction(
+                    settings.deepgram_language, settings.guest_name
+                ),
             ),
         )
 
@@ -513,7 +515,7 @@ class ModularAgent(VonageAgent):
         self._gate.open = True
         # The disclosure is guaranteed in code, not left to the model: every call opens
         # with these exact words, before the LLM has said anything.
-        greeting = persona.LANGUAGES[self._settings.deepgram_language].greeting
+        greeting = persona.greeting(self._settings.deepgram_language, self._settings.guest_name)
         await worker.queue_frames(fixed_speech(greeting))
 
     async def _say_farewell(self) -> None:

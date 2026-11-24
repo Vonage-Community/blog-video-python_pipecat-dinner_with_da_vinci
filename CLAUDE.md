@@ -19,8 +19,8 @@ Video*. This repository is the companion to a tutorial and must keep matching it
 
 ## The persona's hard rules
 
-- **Disclosure** on the join screen, in a banner for the whole call, and in the fixed
-  greeting, in both languages. The greeting is code (`fixed_speech`), never LLM output.
+- **Disclosure**, kept light: one line on the invitation, an *AI portrayal* tag on his
+  frame for the whole call, and the fixed greeting, in both languages. The greeting is code (`fixed_speech`), never LLM output.
 - **Identity lock:** sincerely asked, he always says he's an AI portrayal.
 - **No invented quotes:** he never presents a saying as his words, even paraphrased.
 - **Disputed facts** are acknowledged, not settled. Gossip is documented or labeled

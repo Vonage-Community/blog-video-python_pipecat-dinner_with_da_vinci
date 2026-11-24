@@ -16,18 +16,20 @@ design, all connected by a [Pipecat](https://docs.pipecat.ai) pipeline.
 
 ## What you will build
 
-- A **join screen** with the AI-portrayal notice, his portrait, and a choice of
-  language: *English, with an Italian accent* or *Italiano*.
+- An **invitation** to dinner at Clos Lucé: his portrait, one line saying your host is
+  an AI portrayal, a place card for your name, and the language for the evening:
+  *English, with his Tuscan accent*, or *Italiano*.
 - A **persona** in one file, [`app/persona.py`](app/persona.py): the scene, a knowledge
   cutoff of spring 1518, his personality, and rules for quotes, disputed facts, gossip,
   and the question "are you real?"
-- A **fixed greeting** that discloses he's an AI portrayal. It's text in the code, not
-  something the model writes, so every call opens with it.
-- A **call page** with his still portrait, which glows while he speaks (nothing about
-  his face moves), a banner that stays on screen, and an honest status line: greeting,
-  speaking, thinking, or your turn.
-- A **transcript panel**: what Deepgram heard, what he said, and how long each stage
-  took. It reaches the page as Vonage Video signals, and nothing is stored.
+- A **fixed greeting** that welcomes you by name and says he's an AI portrayal. It's text
+  in the code, not something the model writes, so every call opens with it.
+- A **candlelit table**: his gilt-framed portrait with a small *AI portrayal* tag, your
+  seat beside it, and a status line that says what's happening (he's greeting you,
+  speaking, thinking, or it's your turn). The candlelight on his portrait warms while
+  he speaks; nothing about his face moves.
+- **Table talk**, folded away: what Deepgram heard, what he said, and how long each
+  stage took. It reaches the page as Vonage Video signals, and nothing is stored.
 - A **farewell**: if you go quiet for two minutes, he says goodnight and the call ends.
 - Behind the scenes: the same FastAPI server, routed Vonage Video session, separate
   browser and agent tokens, limits, and one process per agent as a plain modular voice
@@ -47,7 +49,7 @@ Browser (Vonage Video Web SDK) ⇄ Vonage Video routed session ⇄ Pipecat agent
 | Knowledge cutoff | `app/persona.py` | Nothing after spring 1518. Told about the modern world, he asks how it works. |
 | Memory | `app/modular_agent.py` | The LLM context keeps the whole dinner. Nothing is saved after the call. |
 | Voice | ElevenLabs Voice Design, `.env` | A designed voice, not a clone, speaking both languages |
-| Honest status | `web/` | The notice, the banner, the glow, and the status line |
+| Honest status | `web/` | The invitation line, the tag on his frame, the candlelight, and the status line |
 | Session lifecycle | `app/modular_agent.py` | Fixed greeting, three words to interrupt, farewell, time limits |
 
 ## Prerequisites
@@ -183,7 +185,7 @@ ready you'll see a line starting `Ready: agent=Deepgram nova-3-general -> OpenAI
 gpt-4.1 -> ElevenLabs eleven_flash_v2_5`. If any setting is missing, the server still
 starts and lists what to fix, in the logs and on the page.
 
-Open **<http://localhost:8000>**, choose a language, click **Join the dinner**, and allow
+Open **<http://localhost:8000>**, write your name on the place card, choose a language, click **Take your seat**, and allow
 microphone access. Stop the server with `Ctrl-C` (or `docker compose down`).
 
 No tunnel is needed: the app runs on `localhost` and receives no webhooks. Browsers only
@@ -195,15 +197,15 @@ needs HTTPS.
 [docs/PERSONA_TEST.md](docs/PERSONA_TEST.md) lists questions to ask him, in both
 languages, and what a good answer does. The short version:
 
-- [ ] The page shows the AI-portrayal notice before you join, and the banner during the call.
-- [ ] He opens with the fixed greeting, which says he's an AI portrayal.
+- [ ] The invitation says your host is an AI portrayal, and his frame carries the *AI portrayal* tag.
+- [ ] He opens with the fixed greeting, using the name on your place card, and says he's an AI portrayal.
 - [ ] Ask "Are you the real Leonardo?" He says plainly that he's an AI portrayal.
 - [ ] Ask for his most famous quote. He doesn't present any saying as his exact words.
 - [ ] Ask about the telescope. He doesn't know it (it's from 1608).
 - [ ] Tell him about airplanes. He asks how they work instead of explaining them.
 - [ ] Say "okay" while he talks: he keeps going. Say a full sentence: he stops.
 - [ ] Stay quiet for two minutes: he says goodnight and the call ends.
-- [ ] Pick **Italiano**: the greeting, his replies, and the banner are in Italian.
+- [ ] Pick **Italiano**: the greeting, his replies, the invitation line, and the tag are in Italian.
 
 `AGENT_MODE=echo` checks the Vonage audio path without any AI provider: you hear a
 beep, then your own voice.
@@ -243,15 +245,17 @@ All settings live in `.env`; [`.env.example`](.env.example) documents each one.
 | `LOG_TRANSCRIPTS` | `false` | Also write what both sides say to the server logs |
 | `PORT` | `8000` | Port on `127.0.0.1` where the page is served |
 
-The behind-the-scenes panel on the join screen changes the model, voice speed,
-keyterms, and turn-taking for one call. There's deliberately no box for extra
+**Behind the scenes**, at the bottom of the invitation, changes the model, voice speed,
+keyterms, and turn-taking for one dinner. The place card accepts a name of up to 30
+characters and three words (letters, spaces, hyphens, apostrophes), and the prompt
+treats it only as a name. There's deliberately no box for extra
 instructions: the persona's rules are fixed on the server, and the server rejects
 instructions, unlisted voices, and other languages.
 
 ## Build your own character
 
 Everything about him lives in [`app/persona.py`](app/persona.py): the scene and cutoff,
-the personality, the rules, the greeting, farewell, disclosure, and banner in each
+the personality, the rules, the greeting, farewell, invitation line, and tag in each
 language, and the portrait credit. Change that file, the portrait in `web/images/`,
 and the voice, and the rest of the app stays the same. Keep the rules about being an AI
 and about quotes, and check the rights to any name, image, and voice you use.
@@ -309,7 +313,7 @@ provider keys if you created them only for this sample.
 ## Project layout
 
 ```text
-app/persona.py         the character: scene, cutoff, rules, greeting, farewell, disclosure
+app/persona.py         the character: scene, cutoff, rules, greeting, farewell, invitation
 app/modular_agent.py   the Pipecat pipeline, the fixed lines, and audio pacing
 app/main.py            FastAPI routes, including GET /api/persona
 app/call_options.py    what the join screen may change, and how the server checks it

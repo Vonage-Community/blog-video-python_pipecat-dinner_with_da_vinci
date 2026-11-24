@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dinner With da Vinci: an AI persona on Vonage Video</title>
+    <title>Dinner With da Vinci</title>
     <link rel="stylesheet" href="styles.css" />
     <!-- Vonage Video Web SDK, pinned to the version this sample was built against. -->
     <script src="https://unpkg.com/@vonage/client-sdk-video@2.36.0/dist/js/opentok.min.js"></script>
@@ -11,50 +11,50 @@
   </head>
   <body>
     <main class="page">
-      <header>
+      <!-- The invitation: who the host is, your place card, and the language. -->
+      <section id="setup" class="invitation">
+        <p class="place">Clos Lucé · Amboise · Spring 1518</p>
         <h1>Dinner With da Vinci</h1>
-        <p class="subtitle">A spring evening in 1518, at his house in Amboise, France. You're the guest from the future.</p>
-      </header>
+        <div class="rule" aria-hidden="true"></div>
 
-      <section id="setup" class="panel invitation">
-        <div class="invitation-body">
-          <figure class="portrait">
-            <img id="setup-portrait" alt="Red chalk profile portrait of Leonardo da Vinci as an old man, with long hair and beard" />
-            <figcaption id="setup-credit" class="credit"></figcaption>
-          </figure>
+        <figure class="frame oval">
+          <img id="setup-portrait" alt="Portrait of Leonardo da Vinci as an old man, with long hair and a long beard" />
+        </figure>
+        <p class="invited">You are invited to dine with Leonardo, artist, engineer, and incurable questioner, on a spring evening at his house in the Loire Valley.</p>
+        <!-- From GET /api/persona, the same file the agent's greeting uses. -->
+        <p id="invitation-line" class="host-note"></p>
 
-          <div class="invitation-text">
-            <!-- The disclosure comes first, before any button. Its text comes from the
-                 server (GET /api/persona), the same file the agent's greeting uses. -->
-            <p id="disclosure" class="notice" role="note"></p>
+        <label class="place-card">
+          <span>Your place card</span>
+          <input id="guest-name" type="text" maxlength="30" autocomplete="given-name"
+            placeholder="Your name (optional)" spellcheck="false" />
+        </label>
 
-            <div class="field">
-              <span id="language-label">He speaks</span>
-              <div class="segmented two" role="radiogroup" aria-labelledby="language-label" id="opt-language"></div>
-            </div>
-
-            <label class="checkbox">
-              <input type="checkbox" id="use-camera" />
-              Camera on <small>(optional, he only listens)</small>
-            </label>
-
-            <div class="actions">
-              <button id="start" class="primary" type="button">Join the dinner</button>
-            </div>
-            <p id="echo-note" class="hint" hidden>
-              Echo mode (<code>AGENT_MODE=echo</code>): the agent beeps, then repeats your
-              microphone. No AI providers, so there is no persona.
-            </p>
-          </div>
+        <div class="field">
+          <span id="language-label" class="menu-label">Tonight's conversation</span>
+          <div class="menu" role="radiogroup" aria-labelledby="language-label" id="opt-language"></div>
         </div>
 
+        <label class="checkbox">
+          <input type="checkbox" id="use-camera" />
+          Bring your camera <small>(he can't see you, but you'll see yourself at the table)</small>
+        </label>
+
+        <button id="start" class="primary" type="button">Take your seat</button>
+
+        <p id="echo-note" class="hint" hidden>
+          Echo mode (<code>AGENT_MODE=echo</code>): the agent beeps, then repeats your
+          microphone. No AI providers, so there is no host tonight.
+        </p>
+
         <details class="kitchen" id="stages-details">
-          <summary>Behind the scenes: how he listens, thinks, speaks, and takes turns</summary>
+          <summary>Behind the scenes</summary>
+          <p class="hint">How he listens, thinks, speaks, and takes turns. These apply to the next dinner only.</p>
           <div id="stages" class="stages">
             <fieldset class="stage listen">
               <legend><span class="step">1</span>Listen<span class="provider">Deepgram</span></legend>
               <div class="field">
-                <label for="keyterm-input" title="Names Deepgram might mishear, like Melzi or Sforza">Words to listen for</label>
+                <label for="keyterm-input" title="Names Deepgram might mishear, like Sforza or Melzi">Words to listen for</label>
                 <div class="tags" id="keyterm-tags">
                   <input id="keyterm-input" type="text" autocomplete="off"
                     placeholder="Type a word, then Enter" />
@@ -68,7 +68,7 @@
                 <span>Model</span>
                 <select id="opt-model"></select>
               </label>
-              <p class="why">His rules are fixed on the server, in <code>app/persona.py</code>, so there's no box for extra instructions.</p>
+              <p class="why">His rules live on the server, in <code>app/persona.py</code>.</p>
             </fieldset>
 
             <fieldset class="stage speak">
@@ -95,87 +95,90 @@
               </label>
             </fieldset>
           </div>
-          <div class="setup-foot">
-            <button id="reset-options" class="link" type="button">Reset</button>
-          </div>
+          <button id="reset-options" class="link" type="button">Reset</button>
         </details>
       </section>
 
-      <section id="call" class="panel" hidden>
-        <!-- Stays on screen for the whole call. -->
-        <p id="call-banner" class="banner" role="note"></p>
-        <ul id="call-summary" class="summary" aria-label="This call's settings"></ul>
-        <div class="tiles">
-          <figure class="tile" id="you-tile">
-            <div id="publisher" class="video"></div>
-            <div id="you-placeholder" class="placeholder" hidden>Microphone only</div>
-            <figcaption>
-              <span>You</span>
-              <span id="muted-badge" class="badge" hidden>Muted</span>
-              <meter id="you-level" min="0" max="1" value="0" aria-label="Your microphone level"></meter>
-            </figcaption>
-          </figure>
+      <!-- The dinner: his frame and yours, across a candlelit table. -->
+      <section id="call" class="table-scene" hidden>
+        <p class="place">Clos Lucé · Amboise · Spring 1518</p>
 
-          <figure class="tile agent" id="agent-tile">
-            <!-- A still portrait. It glows while he speaks; nothing about it moves. -->
-            <div class="portrait-frame">
-              <img id="call-portrait" alt="Red chalk profile portrait of Leonardo da Vinci" />
+        <div class="seats">
+          <figure class="frame host" id="agent-tile">
+            <!-- A still portrait. It warms in the candlelight while he speaks. -->
+            <div class="canvas">
+              <img id="call-portrait" alt="Portrait of Leonardo da Vinci" />
             </div>
-            <!-- The SDK plays the agent's audio from an element it creates in here. -->
+            <span id="agent-tag" class="tag-ribbon"></span>
+            <!-- The SDK plays his audio from an element it creates in here. -->
             <div id="agent-media" class="visually-hidden"></div>
             <figcaption>
-              <span id="agent-name">AI da Vinci</span>
-              <span id="agent-hearing" class="badge ok" hidden>Can hear you</span>
-              <meter id="agent-level" min="0" max="1" value="0" aria-label="AI da Vinci audio level"></meter>
+              <span id="agent-name">Leonardo</span>
+              <span id="agent-hearing" class="hears" hidden>listening to you</span>
             </figcaption>
-            <p id="call-credit" class="credit tile-credit"></p>
+            <meter id="agent-level" class="visually-hidden" min="0" max="1" value="0" aria-label="Leonardo's audio level"></meter>
+          </figure>
+
+          <figure class="frame guest" id="you-tile">
+            <div class="canvas">
+              <div id="publisher" class="video"></div>
+              <div id="you-placeholder" class="empty-seat" hidden>Your seat</div>
+            </div>
+            <figcaption>
+              <span id="guest-label">You</span>
+              <span id="muted-badge" class="hears muted" hidden>muted</span>
+            </figcaption>
+            <meter id="you-level" class="visually-hidden" min="0" max="1" value="0" aria-label="Your microphone level"></meter>
           </figure>
         </div>
 
+        <div class="table" aria-hidden="true">
+          <span class="candle"><span class="flame"></span></span>
+          <span class="candle tall"><span class="flame"></span></span>
+          <span class="candle"><span class="flame"></span></span>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite">Your seat is ready.</p>
+
         <button id="enable-audio" class="primary" type="button" hidden>
-          Click to enable audio
+          Click to hear him
         </button>
 
         <div class="controls">
           <button id="mute" type="button">Mute</button>
-          <button id="camera" type="button" hidden>Turn camera off</button>
-          <button id="leave" class="danger" type="button">Leave</button>
+          <button id="camera" type="button" hidden>Camera off</button>
+          <button id="leave" class="leave" type="button">Leave the table</button>
           <span id="time-left" class="time-left" aria-live="off"></span>
         </div>
+
+        <details id="transcript" class="table-talk">
+          <summary>Table talk</summary>
+          <p class="hint">
+            What Deepgram heard you say, what he said, and how long each reply took. Sent
+            to this page as Vonage Video signals; nothing is stored.
+          </p>
+          <ol id="transcript-lines" aria-live="polite"></ol>
+          <ul id="call-summary" class="summary" aria-label="Tonight's settings"></ul>
+        </details>
+
       </section>
 
-      <section id="transcript" class="panel transcript" hidden aria-label="Conversation transcript">
-        <h2>The conversation</h2>
-        <p class="hint">
-          What Deepgram heard you say, what AI da Vinci said (written by OpenAI, spoken by
-          ElevenLabs), and how long each stage took before he replied. Sent to this page as
-          Vonage Video signals; nothing is stored.
-        </p>
-        <ol id="transcript-lines" aria-live="polite"></ol>
-      </section>
-
-      <p id="status" class="status" role="status" aria-live="polite">Your seat is ready.</p>
       <div id="error" class="error" role="alert" hidden></div>
 
-      <aside class="disclosure" aria-label="About this demo">
+      <footer>
+        <p id="setup-credit" class="credit"></p>
         <p>
-          <strong>This is an AI portrayal, not Leonardo da Vinci.</strong> Its answers can be
-          wrong, and it can't vouch for any quotation. Nothing is recorded. Use headphones if
-          you can, so he doesn't hear himself.
+          Built with the Vonage Video API, Pipecat, Deepgram, OpenAI, and ElevenLabs.
+          Nothing is recorded.
         </p>
-        <details>
+        <details class="privacy">
           <summary>Where your audio goes</summary>
           <p>
             Your microphone audio travels through Vonage Video to the agent and on to
-            Deepgram. The text of the conversation goes to OpenAI, and his replies to
-            ElevenLabs, for the length of the call. His voice reaches you through the Vonage
-            Video session, never directly from a provider. Nothing is stored after the call.
+            Deepgram. The conversation's text goes to OpenAI, and his replies to
+            ElevenLabs, for the length of the dinner. Nothing is stored afterwards.
           </p>
         </details>
-      </aside>
-
-      <footer>
-        <p>Built with the Vonage Video API, Pipecat, Deepgram, OpenAI, and ElevenLabs.</p>
       </footer>
     </main>
   </body>

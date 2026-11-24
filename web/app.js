@@ -38,12 +38,13 @@ const ui = {
   stages: $('stages'),
   stagesDetails: $('stages-details'),
   echoNote: $('echo-note'),
-  disclosure: $('disclosure'),
+  invitationLine: $('invitation-line'),
+  guestName: $('guest-name'),
+  guestLabel: $('guest-label'),
   setupPortrait: $('setup-portrait'),
   setupCredit: $('setup-credit'),
-  callBanner: $('call-banner'),
+  agentTag: $('agent-tag'),
   callPortrait: $('call-portrait'),
-  callCredit: $('call-credit'),
   agentTile: $('agent-tile'),
   language: $('opt-language'),
   keytermTags: $('keyterm-tags'),
@@ -67,11 +68,11 @@ const END_MESSAGES = {
   left: 'You left the dinner.',
   user_stream_left: 'Your stream left the Vonage session, so the agent stopped.',
   max_duration: 'The dinner reached its maximum length.',
-  idle_timeout: 'He said goodnight after a long silence.',
+  idle_timeout: 'Leonardo said goodnight after a long silence.',
   ready_timeout: 'The dinner ended because the agent and browser never connected.',
   server_shutdown: 'The server shut down.',
-  agent_exited: 'AI da Vinci left the dinner.',
-  error: 'AI da Vinci stopped because of an error.',
+  agent_exited: 'Leonardo left the table.',
+  error: 'Leonardo left because of an error.',
 };
 
 let call = null; // the conversation in progress, if any
@@ -80,7 +81,10 @@ let call = null; // the conversation in progress, if any
 
 const STORAGE_KEY = 'dinner-with-da-vinci-options';
 const PAUSE_LABELS = { quick: 'Quick', relaxed: 'Relaxed', patient: 'Patient' };
-const LANGUAGE_LABELS = { en: 'English, with an Italian accent', it: 'Italiano' };
+const LANGUAGE_LABELS = {
+  en: ['In English', 'with his Tuscan accent'],
+  it: ['In italiano', 'his own language'],
+};
 const room = { catalog: null, persona: null, keyterms: [] };
 
 // The disclosure and portrait credit, as the server's app/persona.py defines them.
@@ -92,7 +96,7 @@ async function loadPersona() {
   }
   const { portrait, displayName } = room.persona;
   for (const img of [ui.setupPortrait, ui.callPortrait]) img.src = portrait.path;
-  for (const credit of [ui.setupCredit, ui.callCredit]) {
+  for (const credit of [ui.setupCredit]) {
     const link = Object.assign(document.createElement('a'), {
       href: portrait.sourceUrl,
       textContent: portrait.credit,
@@ -101,27 +105,20 @@ async function loadPersona() {
     });
     credit.replaceChildren(link);
   }
-  ui.agentName.textContent = displayName;
+  ui.agentName.textContent = 'Leonardo';
+  ui.agentName.title = displayName;
   renderDisclosure();
 }
 
-// The disclosure in the chosen language. In Italian, the English one stays too, because
-// the rest of the page is in English.
+// Who the host is, in one line, in the chosen language, and the tag on his frame.
 function renderDisclosure() {
   const texts = room.persona?.languages;
   if (!texts) return;
   const language = selectedLanguage();
-  ui.disclosure.replaceChildren(document.createTextNode(texts.en.disclosure));
-  if (language !== 'en' && texts[language]) {
-    const translated = Object.assign(document.createElement('span'), {
-      lang: language,
-      className: 'translated',
-      textContent: texts[language].disclosure,
-    });
-    ui.disclosure.append(translated);
-  }
-  ui.callBanner.textContent = (texts[language] || texts.en).banner;
-  ui.callBanner.lang = language;
+  ui.invitationLine.textContent = (texts[language] || texts.en).invitation;
+  ui.invitationLine.lang = language;
+  ui.agentTag.textContent = (texts[language] || texts.en).tag;
+  ui.agentTag.lang = language;
 }
 
 function selectedLanguage() {
@@ -145,7 +142,7 @@ async function loadWaitingRoom() {
     return;
   }
   ui.language.replaceChildren(
-    ...catalog.languages.map(({ code }) => radio('language', code, LANGUAGE_LABELS[code] || code)),
+    ...catalog.languages.map(({ code }) => menuChoice('language', code, ...(LANGUAGE_LABELS[code] || [code]))),
   );
   fillSelect(ui.model, catalog.openaiModels.map((m) => [m, m]));
   fillSelect(ui.voice, catalog.voices.map((v) => [v.id, v.name]));
@@ -155,6 +152,19 @@ async function loadWaitingRoom() {
     ),
   );
   applyOptions({ ...catalog.defaults, ...savedOptions() });
+}
+
+// A choice on the evening's menu: a title and a line in italics.
+function menuChoice(name, value, title, line) {
+  const label = document.createElement('label');
+  const input = document.createElement('input');
+  Object.assign(input, { type: 'radio', name, value });
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const small = document.createElement('small');
+  small.textContent = line || '';
+  label.append(input, strong, small);
+  return label;
 }
 
 function radio(name, value, text, note) {
@@ -180,6 +190,7 @@ function applyOptions(o) {
   const language =
     ui.language.querySelector(`input[value="${o.language}"]`) || ui.language.querySelector('input');
   if (language) language.checked = true;
+  ui.guestName.value = o.guestName || '';
   room.keyterms = [...(o.keyterms || [])];
   renderKeyterms();
   ui.model.value = o.openaiModel;
@@ -197,6 +208,7 @@ function applyOptions(o) {
 function currentOptions() {
   return {
     language: selectedLanguage(),
+    guestName: ui.guestName.value.trim().replace(/\s+/g, ' '),
     keyterms: room.keyterms,
     openaiModel: ui.model.value,
     voiceId: ui.voice.value,
@@ -282,7 +294,7 @@ function renderCallSummary(options) {
   }
 }
 
-for (const el of [ui.model, ui.voice, ui.speed, ui.words]) {
+for (const el of [ui.model, ui.voice, ui.speed, ui.words, ui.guestName]) {
   el.addEventListener('input', () => {
     renderOptionLabels();
     saveOptions();
@@ -471,7 +483,7 @@ function joinSession({ applicationId, vonageSessionId, token }) {
     streamCreated: (event) => onStreamCreated(event.stream),
     streamDestroyed: (event) => {
       if (roleOf(event.stream.connection) === 'agent' && call && !call.ending) {
-        setStatus('AI da Vinci left the dinner.');
+        setStatus('Leonardo has left the table.');
       }
     },
     'signal:transcript': onTranscript,
@@ -492,7 +504,7 @@ function joinSession({ applicationId, vonageSessionId, token }) {
         reject(new Error(`Could not connect to Vonage Video: ${connectError.message}`));
         return;
       }
-      if (!call.agentSubscriber) setStatus('Connected. Waiting for AI da Vinci to take his seat…');
+      if (!call.agentSubscriber) setStatus('Leonardo is on his way to the table…');
       session.publish(call.publisher, (publishError) =>
         publishError
           ? reject(new Error(`Could not publish your microphone: ${publishError.message}`))
@@ -524,14 +536,13 @@ function onTranscript(event) {
   const item = document.createElement('li');
   item.className = line.role === 'user' ? 'heard' : 'said';
   const label = document.createElement('strong');
-  label.textContent = line.role === 'user' ? 'Deepgram heard' : 'AI da Vinci said';
+  label.textContent = line.role === 'user' ? 'You' : 'Leonardo';
   const text = document.createElement('span');
   text.textContent = line.text;
   item.append(label, text);
   if (line.interrupted) markInterrupted(item);
   ui.transcriptLines.append(item);
-  ui.transcript.hidden = false;
-  item.scrollIntoView({ block: 'nearest' });
+  if (ui.transcript.open) item.scrollIntoView({ block: 'nearest' });
   // Your words reached the agent, and his reply hasn't started: he's thinking.
   if (call && line.role === 'user') call.thinking = true;
   if (call && line.role === 'agent') call.heardAgent = true;
@@ -577,8 +588,7 @@ function onLatency(event) {
   }
   item.append(total, bar, parts);
   ui.transcriptLines.append(item);
-  ui.transcript.hidden = false;
-  item.scrollIntoView({ block: 'nearest' });
+  if (ui.transcript.open) item.scrollIntoView({ block: 'nearest' });
 }
 
 function onStreamCreated(stream) {
@@ -589,7 +599,7 @@ function onStreamCreated(stream) {
   }
   if (!call || call.agentSubscriber) return;
 
-  setStatus('AI da Vinci joined. Connecting to his audio…');
+  setStatus('Leonardo has arrived…');
   const subscriber = call.session.subscribe(
     stream,
     ui.agentMedia,
@@ -608,7 +618,7 @@ function onStreamCreated(stream) {
     },
     (error) => {
       if (error) {
-        endCall(`Could not subscribe to AI da Vinci: ${error.message}`, true);
+        endCall(`Could not hear Leonardo: ${error.message}`, true);
       } else if (subscriber.isAudioBlocked()) {
         offerAudioUnblock();
       } else {
@@ -634,7 +644,7 @@ function offerAudioUnblock() {
 async function signalReady() {
   if (!call || call.ready || call.ending) return;
   call.ready = true;
-  setStatus('Starting the conversation…');
+  setStatus('Leonardo takes his seat…');
   try {
     // Our connection ID lets the server send transcript signals to this page only.
     const connectionId = call.session.connection?.connectionId;
@@ -664,17 +674,17 @@ function renderLiveStatus() {
     setStatusQuietly('Echo diagnostic: you should have heard a beep. Now speak and you will hear yourself.');
   } else if (speaking && !call.greeted) {
     // The greeting carries the disclosure, so the server doesn't let it be cut short.
-    setStatusQuietly('AI da Vinci is greeting you.');
+    setStatusQuietly('Leonardo welcomes you to his table.');
   } else if (speaking) {
-    setStatusQuietly('AI da Vinci is speaking. Talk over him to interrupt.');
+    setStatusQuietly('Leonardo is speaking. Talk over him to interrupt.');
   } else if (call.muted) {
     setStatusQuietly("You're muted, so he can't hear you.");
   } else if (youLevel.speaking) {
-    setStatusQuietly('Listening…');
+    setStatusQuietly('He is listening…');
   } else if (call.thinking) {
-    setStatusQuietly('AI da Vinci is thinking…');
+    setStatusQuietly('Leonardo is thinking…');
   } else {
-    setStatusQuietly('Your turn: say something.');
+    setStatusQuietly('Your turn.');
   }
 }
 
@@ -714,7 +724,7 @@ function startCountdown() {
   const current = call;
   const tick = () => {
     const seconds = Math.max(0, Math.round((current.deadline - Date.now()) / 1000));
-    ui.timeLeft.textContent = `Time left ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    ui.timeLeft.textContent = `The candles will burn for ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} more`;
   };
   tick();
   current.countdown = setInterval(tick, 1000);
@@ -726,7 +736,8 @@ function showCallUi() {
   ui.publisher.hidden = !call.useCamera;
   ui.youPlaceholder.hidden = call.useCamera;
   ui.camera.hidden = !call.useCamera;
-  ui.camera.textContent = 'Turn camera off';
+  ui.camera.textContent = 'Camera off';
+  ui.guestLabel.textContent = ui.guestName.value.trim() || 'You';
   ui.mute.textContent = 'Mute';
   ui.mute.setAttribute('aria-pressed', 'false');
   ui.mutedBadge.hidden = true;
@@ -755,7 +766,7 @@ async function start() {
   youLevel.reset();
   agentLevel.reset();
   ui.transcriptLines.replaceChildren();
-  ui.transcript.hidden = true;
+  ui.transcript.open = false;
 
   try {
     setStatus('Asking for microphone access…');
@@ -830,9 +841,9 @@ ui.mute.addEventListener('click', () => {
 
 ui.camera.addEventListener('click', () => {
   if (!call?.publisher) return;
-  const on = ui.camera.textContent === 'Turn camera on';
+  const on = ui.camera.textContent === 'Camera on';
   call.publisher.publishVideo(on);
-  ui.camera.textContent = on ? 'Turn camera off' : 'Turn camera on';
+  ui.camera.textContent = on ? 'Camera off' : 'Camera on';
 });
 
 ui.enableAudio.addEventListener('click', async () => {

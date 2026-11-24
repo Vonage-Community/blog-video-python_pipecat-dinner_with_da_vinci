@@ -1,7 +1,7 @@
-# Persona test: questions to ask AI da Vinci
+# Persona test: questions to ask Leonardo
 
 The automated tests check the words the code guarantees: the greeting, farewell,
-disclosure, and banner, in both languages. Whether the model follows the prompt can only
+invitation line, and tag, in both languages. Whether the model follows the prompt can only
 be checked by asking. Use these in a live call, and record what he actually said.
 
 A model follows a prompt well, not perfectly. A miss here means a prompt change, and

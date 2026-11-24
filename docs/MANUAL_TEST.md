@@ -33,10 +33,10 @@ docker compose up
 
 Set `AGENT_MODE=echo` in `.env`, then `docker compose up` again.
 
-1. Open `http://localhost:8000`, keep the camera off, click **Join the dinner**,
+1. Open `http://localhost:8000`, keep the camera off, click **Take your seat**,
    and allow the microphone.
-2. - [ ] The status moves through *Connecting to Vonage Video…*, *Waiting for AI da
-         Vinci to take his seat…*, *AI da Vinci joined…*.
+2. - [ ] The status moves through *Connecting to Vonage Video…*, *Leonardo is on his
+         way to the table…*, *Leonardo has arrived…*.
    - [ ] **You hear a short beep.** This is audio the agent published into Vonage,
          played by your Vonage subscription.
    - [ ] Speak: **you hear your own voice back** after a short delay. This is your
@@ -53,25 +53,24 @@ Set `AGENT_MODE=echo` in `.env`, then `docker compose up` again.
    - [ ] The page returns to the start screen with *You left the dinner.*
    - [ ] Logs show `Session …: ended (left)` and `Agent process … exited`.
 
-## Gate 3: AI da Vinci in English
+## Gate 3: Leonardo in English
 
 Set `AGENT_MODE=modular` and `LOG_TRANSCRIPTS=true`, then restart.
 
-- [ ] Before you join, the notice says he's an AI portrayal, and the portrait credit
-      is under the picture.
+- [ ] Before you join, the invitation says your host is an AI portrayal, and the
+      portrait credit is in the footer. Write a name on the place card.
 - [ ] After joining, he **greets you once** with the fixed greeting ("…I am not the real
       Leonardo da Vinci, but an AI portrayal of him…"), without you speaking first. The
-      status says *AI da Vinci is greeting you.*
+      status says *Leonardo welcomes you to his table.* The greeting uses your name.
 - [ ] Talk over the greeting: it carries on to the end (it can't be interrupted).
-- [ ] The banner *AI portrayal: not the real Leonardo da Vinci* stays on screen.
-- [ ] The portrait glows while he speaks and stops when he stops.
+- [ ] His frame carries the *AI portrayal* tag for the whole dinner.
+- [ ] The candlelight on his portrait warms while he speaks and fades when he stops.
 - [ ] Ask a question: he answers in character within a few seconds, in your designed
       voice, with an Italian accent.
 - [ ] Work through [PERSONA_TEST.md](PERSONA_TEST.md) and record the answers there.
-- [ ] The transcript panel shows *Deepgram heard* and *AI da Vinci said* lines. The
-      greeting shows as one bubble.
+- [ ] **Table talk** shows *You* and *Leonardo* lines. The greeting shows as one bubble.
 - [ ] Say "okay" while he's talking: he keeps going. Say a full sentence over him:
-      **he stops** and listens. The next *AI da Vinci said* line ends where you
+      **he stops** and listens. The next *Leonardo* line ends where you
       interrupted and is marked *(interrupted)*.
 - [ ] Hold a 3 to 5 minute conversation: he remembers earlier turns.
 - [ ] **Mute**: he doesn't react to you. **Unmute**: he hears you again.
@@ -81,10 +80,10 @@ Set `AGENT_MODE=modular` and `LOG_TRANSCRIPTS=true`, then restart.
 
 ## Gate 3b: Italiano, and the behind-the-scenes panel
 
-- [ ] Pick **Italiano**: the notice adds the Italian text, and the banner reads
-      *Interpretazione IA: non è il vero Leonardo da Vinci*.
+- [ ] Pick **Italiano**: the invitation line turns Italian, and his tag reads
+      *Interpretazione IA*.
 - [ ] The greeting is the fixed Italian one, and he answers only in Italian, in the same
-      voice. Daniela checks the greeting, the farewell, the disclosure, and a few replies.
+      voice. Daniela checks the greeting, the farewell, the invitation line, and a few replies.
 - [ ] Ask the identity and quote questions in Italian (PERSONA_TEST.md).
 - [ ] Open **Behind the scenes**: change the speed to 1.0×, the model to
       `gpt-4.1-mini`, and the pause to *Patient*. The call summary shows all three.

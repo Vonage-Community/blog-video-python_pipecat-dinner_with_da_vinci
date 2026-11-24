@@ -46,8 +46,8 @@ def test_persona_is_public_and_matches_what_the_agent_uses(client):
     response = client.get("/api/persona")
     assert response.status_code == 200
     body = response.json()
-    assert body["languages"]["en"]["disclosure"] == persona.LANGUAGES["en"].disclosure
-    assert body["languages"]["it"]["banner"] == persona.LANGUAGES["it"].banner
+    assert body["languages"]["en"]["invitation"] == persona.LANGUAGES["en"].invitation
+    assert body["languages"]["it"]["tag"] == persona.LANGUAGES["it"].tag
     portrait = client.get("/" + body["portrait"]["path"])
     assert portrait.status_code == 200
     assert portrait.headers["content-type"] == "image/jpeg"

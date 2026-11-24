@@ -40,6 +40,7 @@ class CallOptionsError(Exception):
 @dataclass(frozen=True)
 class CallOptions:
     language: str
+    guest_name: str
     keyterms: tuple[str, ...]
     openai_model: str
     voice_id: str
@@ -51,6 +52,7 @@ class CallOptions:
     def defaults(cls, settings: Settings) -> CallOptions:
         return cls(
             language=settings.deepgram_language,
+            guest_name="",
             keyterms=settings.deepgram_keyterms,
             openai_model=settings.openai_model,
             voice_id=settings.elevenlabs_voice_id,
@@ -75,6 +77,7 @@ class CallOptions:
         return replace(
             settings,
             deepgram_language=self.language,
+            guest_name=self.guest_name,
             deepgram_keyterms=self.keyterms,
             openai_model=self.openai_model,
             elevenlabs_voice_id=self.voice_id,
@@ -86,6 +89,7 @@ class CallOptions:
 
 _JSON_NAMES = {
     "language": "language",
+    "guest_name": "guestName",
     "keyterms": "keyterms",
     "openai_model": "openaiModel",
     "voice_id": "voiceId",
@@ -121,6 +125,21 @@ def parse_call_options(raw: Any, settings: Settings) -> CallOptions:
     if model not in settings.openai_models:
         problems.append(f"openaiModel must be one of {', '.join(settings.openai_models)}")
 
+    guest_name = raw.get("guestName", "")
+    if not isinstance(guest_name, str):
+        problems.append("guestName must be text")
+        guest_name = ""
+    guest_name = " ".join(_clean(guest_name).split())
+    if guest_name and (
+        len(guest_name) > persona.MAX_GUEST_NAME
+        or len(guest_name.split()) > persona.MAX_GUEST_NAME_WORDS
+        or not persona.GUEST_NAME.match(guest_name)
+    ):
+        problems.append(
+            f"guestName must be a name: up to {persona.MAX_GUEST_NAME} characters and "
+            f"{persona.MAX_GUEST_NAME_WORDS} words, letters, spaces, hyphens, and apostrophes"
+        )
+
     if "instructions" in raw:
         problems.append("instructions can't be changed: the persona's rules are fixed")
 
@@ -151,6 +170,7 @@ def parse_call_options(raw: Any, settings: Settings) -> CallOptions:
         raise CallOptionsError(problems)
     return CallOptions(
         language=language,
+        guest_name=guest_name,
         keyterms=keyterms,
         openai_model=model,
         voice_id=voice_id,

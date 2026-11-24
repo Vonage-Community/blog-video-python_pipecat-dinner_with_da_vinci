@@ -66,6 +66,8 @@ class Settings:
     elevenlabs_api_key: Secret | None = field(repr=False)
     deepgram_model: str = DEFAULT_DEEPGRAM_MODEL
     deepgram_language: str = DEFAULT_DEEPGRAM_LANGUAGE
+    # Set per call from the place card; empty means no name was given.
+    guest_name: str = ""
     # Words Deepgram should listen for, such as product or people's names.
     deepgram_keyterms: tuple[str, ...] = ()
     openai_model: str = DEFAULT_OPENAI_MODEL

@@ -16,7 +16,7 @@ conversation with a person, and Daniela's review of the Italian.
 | Knowledge cutoff | same | A date, and what to do with things he can't know: ask how they work |
 | Memory | `LLMContext()` in `ModularAgent.build_pipeline` | Already there; the only decision is what not to keep |
 | Voice | Voice Design prompt and preview text (README), `ELEVENLABS_VOICE_ID` | Describe a character, never name the person. Tuscan accent as a historical reference point (born in Vinci, spoke vernacular Tuscan); custom preview text in character shapes the voice; test the saved voice in both languages |
-| Honest status | `web/index.html`, `renderLiveStatus` in `web/app.js` | Notice before joining, banner, glow, "greeting / speaking / thinking / your turn" |
+| Honest status | `web/index.html`, `renderLiveStatus` in `web/app.js` | One invitation line, the tag on his frame, the candlelight, "greeting / speaking / thinking / your turn" |
 | Session lifecycle | `fixed_speech`, `begin_conversation`, `_say_farewell` | Fixed greeting and farewell are code, not prompt |
 
 ## Generic agent vs persona agent
@@ -71,10 +71,10 @@ testing caught it. See `docs/PERSONA_TEST.md` for the rest.
 
 ## Screenshots for the post
 
-- The join screen: portrait, notice, language choice (`docs/` has none; take at 1,200 px).
-- The call mid-reply: banner, glowing portrait, transcript with one exchange and its
-  timing line.
-- The Italian call: Italian banner and greeting.
+- The invitation: portrait, place card, and the evening's language (take at 1,200 px).
+- The table mid-reply: his frame in warm candlelight with the tag, your seat, and Table
+  talk open on one exchange and its timing line.
+- The Italian dinner: the Italian tag and greeting.
 - The before-and-after quote, as two transcript bubbles or a small table.
 
 ## Links

@@ -513,6 +513,14 @@ function onTranscript(event) {
     return;
   }
   if (typeof line?.text !== 'string') return;
+  // Fixed lines (the greeting and farewell) are spoken a sentence at a time, so they
+  // arrive in pieces. Back-to-back pieces from him belong in one bubble.
+  const last = ui.transcriptLines.lastElementChild;
+  if (line.role === 'agent' && last?.classList.contains('said') && !last.dataset.interrupted) {
+    last.querySelector('span').textContent += ` ${line.text}`;
+    if (line.interrupted) markInterrupted(last);
+    return;
+  }
   const item = document.createElement('li');
   item.className = line.role === 'user' ? 'heard' : 'said';
   const label = document.createElement('strong');
@@ -520,17 +528,20 @@ function onTranscript(event) {
   const text = document.createElement('span');
   text.textContent = line.text;
   item.append(label, text);
-  if (line.interrupted) {
-    const note = document.createElement('em');
-    note.textContent = ' (interrupted: only the words you heard)';
-    item.append(note);
-  }
+  if (line.interrupted) markInterrupted(item);
   ui.transcriptLines.append(item);
   ui.transcript.hidden = false;
   item.scrollIntoView({ block: 'nearest' });
   // Your words reached the agent, and his reply hasn't started: he's thinking.
   if (call && line.role === 'user') call.thinking = true;
-  if (call && line.role === 'agent') call.greeted = true;
+  if (call && line.role === 'agent') call.heardAgent = true;
+}
+
+function markInterrupted(item) {
+  item.dataset.interrupted = 'true';
+  const note = document.createElement('em');
+  note.textContent = ' (interrupted: only the words you heard)';
+  item.append(note);
 }
 
 // One per reply, sent when the agent starts speaking: how long you waited and where
@@ -647,6 +658,8 @@ function renderLiveStatus() {
   const speaking = agentLevel.speaking;
   ui.agentTile.classList.toggle('speaking', speaking);
   if (speaking) call.thinking = false;
+  // The greeting is over once his first words have arrived and his audio has stopped.
+  if (!speaking && call.heardAgent) call.greeted = true;
   if (call.agentMode === 'echo') {
     setStatusQuietly('Echo diagnostic: you should have heard a beep. Now speak and you will hear yourself.');
   } else if (speaking && !call.greeted) {
@@ -735,6 +748,7 @@ async function start() {
     live: false,
     thinking: false,
     greeted: false,
+    heardAgent: false,
     ending: false,
     pollFailures: 0,
   };

@@ -28,8 +28,10 @@ Who the agent plays, and in which language, comes from app/persona.py.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
+import time
 from typing import Any
 
 import numpy as np
@@ -79,15 +81,52 @@ from app.session_manager import AgentConnection, AgentEvents
 FAREWELL_HEADSTART_SECONDS = 30
 
 
-def fixed_speech(text: str) -> TTSSpeakFrame:
+# How much of the agent's audio to hand the Vonage connector ahead of time, so playback
+# never runs dry between chunks.
+AUDIO_LEAD_SECONDS = 0.2
+
+
+def pace_audio_to_real_time(transport: VonageVideoConnectorTransport) -> None:
+    """Make Pipecat's "bot is speaking" match what the guest hears.
+
+    At the time of writing, the Vonage transport hands each audio chunk to the native
+    connector, which buffers it and returns at once. A whole reply is handed over in about
+    a second, so Pipecat decides the bot stopped speaking while the guest still hears it
+    for many seconds more. Rules that depend on it then misfire: one word interrupts
+    instead of three, and the idle timer starts during the reply. Waiting for each chunk's
+    playing time keeps the two clocks together, the way Pipecat's websocket transports do.
+    """
+    output = transport.output()
+    write = output.write_audio_frame  # type: ignore[attr-defined]
+    play_until = 0.0
+
+    async def paced_write(frame: OutputAudioRawFrame) -> bool:
+        nonlocal play_until
+        play_until = max(play_until, time.monotonic())
+        written = await write(frame)
+        play_until += len(frame.audio) / (2 * frame.num_channels * frame.sample_rate)
+        await asyncio.sleep(max(0.0, play_until - time.monotonic() - AUDIO_LEAD_SECONDS))
+        return written
+
+    output.write_audio_frame = paced_write  # type: ignore[attr-defined]
+
+
+def fixed_speech(text: str) -> list[TTSSpeakFrame]:
     """Words spoken exactly as written, which talking over can't cut short.
 
     The LLM never sees a request to write them, so it can't leave anything out. They are
     still added to the conversation, so the model knows what was said.
+
+    One frame per sentence, the way the LLM's replies reach ElevenLabs. In testing, Flash
+    v2.5 turned the whole Italian greeting, sent at once, into 87 seconds of audio that
+    trailed off into noise; sentence by sentence it was 20 seconds and clean.
     """
-    frame = TTSSpeakFrame(text, append_to_context=True)
-    frame.interruptible = False
-    return frame
+    frames = []
+    for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
+        frame = TTSSpeakFrame(sentence, append_to_context=True)
+        frame.interruptible = False
+        frames.append(frame)
+    return frames
 
 
 def connection_role(client: dict[str, Any]) -> str | None:
@@ -147,6 +186,7 @@ class VonageAgent:
             ),
         )
         self._register_transport_events(transport)
+        pace_audio_to_real_time(transport)
 
         worker = self.build_pipeline(transport)
         self._register_worker_events(worker)
@@ -477,7 +517,7 @@ class ModularAgent(VonageAgent):
         # The disclosure is guaranteed in code, not left to the model: every call opens
         # with these exact words, before the LLM has said anything.
         greeting = persona.LANGUAGES[self._settings.deepgram_language].greeting
-        await worker.queue_frames([fixed_speech(greeting)])
+        await worker.queue_frames(fixed_speech(greeting))
 
     async def _say_farewell(self) -> None:
         if self._said_farewell or self._worker is None:
@@ -486,7 +526,7 @@ class ModularAgent(VonageAgent):
         logger.info("The guest has been quiet too long: saying goodbye")
         farewell = persona.LANGUAGES[self._settings.deepgram_language].farewell
         # EndFrame waits behind the farewell's audio, so the pipeline ends after it plays.
-        await self._worker.queue_frames([fixed_speech(farewell), EndFrame()])
+        await self._worker.queue_frames([*fixed_speech(farewell), EndFrame()])
 
 
 class MicrophoneEcho(FrameProcessor):

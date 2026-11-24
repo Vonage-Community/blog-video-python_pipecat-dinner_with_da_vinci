@@ -735,17 +735,24 @@ button.link {
   padding: 6px 10px;
 }
 
+/* Same shape as your tile, with the whole drawing visible inside it. */
 .portrait-frame {
   aspect-ratio: 4 / 3;
-  display: flex;
-  justify-content: center;
+  width: 100%;
+  overflow: hidden;
   background: #120d09;
 }
 
 .portrait-frame img {
+  display: block;
+  width: 100%;
   height: 100%;
   object-fit: contain;
   transition: filter 250ms ease;
+}
+
+.tile figcaption .badge {
+  white-space: nowrap;
 }
 
 /* While his audio plays, the frame glows. The picture itself never moves. */

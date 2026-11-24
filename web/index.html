@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vonage Video voice agent: Deepgram, OpenAI, ElevenLabs</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Vonage Video Web SDK, pinned to the version this sample was built against. -->
+    <script src="https://unpkg.com/@vonage/client-sdk-video@2.36.0/dist/js/opentok.min.js"></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Talk to an AI voice agent in a Vonage Video call</h1>
+        <p class="subtitle">
+          Choose how it listens, thinks, speaks, and takes turns. Then start the call.
+        </p>
+      </header>
+
+      <section id="setup" class="panel">
+        <p id="echo-note" class="hint" hidden>
+          Echo mode (<code>AGENT_MODE=echo</code>): the agent beeps, then repeats your
+          microphone. No AI providers, so there is nothing to choose.
+        </p>
+
+        <div id="stages" class="stages">
+          <fieldset class="stage listen">
+            <legend><span class="step">1</span>Listen<span class="provider">Deepgram</span></legend>
+            <label class="field">
+              <span>Language</span>
+              <select id="opt-language"></select>
+            </label>
+            <div class="field">
+              <label for="keyterm-input" title="Names Deepgram might mishear, like Pipecat or your surname">Words to listen for</label>
+              <div class="tags" id="keyterm-tags">
+                <input id="keyterm-input" type="text" autocomplete="off"
+                  placeholder="Type a word, then Enter" />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="stage think">
+            <legend><span class="step">2</span>Think<span class="provider">OpenAI</span></legend>
+            <label class="field">
+              <span>Model</span>
+              <select id="opt-model"></select>
+            </label>
+            <label class="field">
+              <span title="Added after the built-in rules: short spoken replies, and it's an AI">Extra instructions <small id="instructions-count"></small></span>
+              <textarea id="opt-instructions" rows="3"
+                placeholder="For example: Answer like a patient science teacher."></textarea>
+            </label>
+          </fieldset>
+
+          <fieldset class="stage speak">
+            <legend><span class="step">3</span>Speak<span class="provider">ElevenLabs</span></legend>
+            <label class="field">
+              <span>Voice</span>
+              <select id="opt-voice"></select>
+            </label>
+            <label class="field" id="custom-voice-field" hidden>
+              <span>Voice ID</span>
+              <input id="opt-voice-id" type="text" autocomplete="off" spellcheck="false"
+                maxlength="20" placeholder="20 letters and digits" />
+            </label>
+            <label class="field">
+              <span>Speed <output id="speed-value">1.0×</output></span>
+              <input id="opt-speed" type="range" min="0.7" max="1.2" step="0.05" value="1" />
+            </label>
+            <p class="why" id="voices-note" hidden></p>
+          </fieldset>
+
+          <fieldset class="stage turns">
+            <legend><span class="step">4</span>Take turns<span class="provider">Pipecat</span></legend>
+            <div class="field">
+              <span id="pause-label" title="Longer pauses cut you off less often, and reply more slowly">Pause before replying</span>
+              <div class="segmented" role="radiogroup" aria-labelledby="pause-label" id="opt-pause"></div>
+            </div>
+            <label class="field">
+              <span>Words needed to interrupt <output id="words-value">3</output></span>
+              <input id="opt-words" type="range" min="1" max="5" step="1" value="3" />
+            </label>
+          </fieldset>
+        </div>
+
+        <div class="setup-foot">
+          <label class="checkbox">
+            <input type="checkbox" id="use-camera" />
+            Camera on <small>(optional, the agent only listens)</small>
+          </label>
+          <div class="actions">
+            <button id="reset-options" class="link" type="button">Reset</button>
+            <button id="start" class="primary" type="button">Start conversation</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="call" class="panel" hidden>
+        <ul id="call-summary" class="summary" aria-label="This call's settings"></ul>
+        <div class="tiles">
+          <figure class="tile" id="you-tile">
+            <div id="publisher" class="video"></div>
+            <div id="you-placeholder" class="placeholder" hidden>Microphone only</div>
+            <figcaption>
+              <span>You</span>
+              <span id="muted-badge" class="badge" hidden>Muted</span>
+              <meter id="you-level" min="0" max="1" value="0" aria-label="Your microphone level"></meter>
+            </figcaption>
+          </figure>
+
+          <figure class="tile agent" id="agent-tile">
+            <div class="placeholder agent-card" aria-hidden="true">
+              <svg viewBox="0 0 64 64" width="72" height="72">
+                <rect x="8" y="26" width="6" height="12" rx="3" />
+                <rect x="20" y="16" width="6" height="32" rx="3" />
+                <rect x="32" y="8" width="6" height="48" rx="3" />
+                <rect x="44" y="18" width="6" height="28" rx="3" />
+                <rect x="56" y="27" width="6" height="10" rx="3" />
+              </svg>
+              <p>Audio-only AI participant<br />(no video)</p>
+            </div>
+            <!-- The SDK plays the agent's audio from an element it creates in here. -->
+            <div id="agent-media" class="visually-hidden"></div>
+            <figcaption>
+              <span>AI agent</span>
+              <span id="agent-hearing" class="badge ok" hidden>Can hear you</span>
+              <meter id="agent-level" min="0" max="1" value="0" aria-label="AI agent audio level"></meter>
+            </figcaption>
+          </figure>
+        </div>
+
+        <button id="enable-audio" class="primary" type="button" hidden>
+          Click to enable audio
+        </button>
+
+        <div class="controls">
+          <button id="mute" type="button">Mute</button>
+          <button id="camera" type="button" hidden>Turn camera off</button>
+          <button id="leave" class="danger" type="button">Leave</button>
+          <span id="time-left" class="time-left" aria-live="off"></span>
+        </div>
+      </section>
+
+      <section id="transcript" class="panel transcript" hidden aria-label="Conversation transcript">
+        <h2>The text between the stages</h2>
+        <p class="hint">
+          What Deepgram heard you say, what the agent said (written by OpenAI, spoken by
+          ElevenLabs), and how long each stage took before the reply started. Sent to this
+          page as Vonage Video signals; nothing is stored.
+        </p>
+        <ol id="transcript-lines" aria-live="polite"></ol>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite">Ready when you are.</p>
+      <div id="error" class="error" role="alert" hidden></div>
+
+      <aside class="disclosure" aria-label="AI disclosure">
+        <p>
+          <strong>You'll be talking to an AI, not a person.</strong> Its answers and voice
+          are AI-generated, and the answers can be wrong. Nothing is recorded. Use headphones
+          if you can, so the agent doesn't hear itself.
+        </p>
+        <details>
+          <summary>Where your audio goes</summary>
+          <p>
+            Your microphone audio travels through Vonage Video to the agent and on to
+            Deepgram. The text of the conversation goes to OpenAI, and the agent's replies
+            to ElevenLabs, for the length of the call. The agent's voice reaches you
+            through the Vonage Video session, never directly from a provider. Nothing is
+            stored after the call.
+          </p>
+        </details>
+      </aside>
+
+      <footer>
+        <p>Built with the Vonage Video API, Pipecat, Deepgram, OpenAI, and ElevenLabs.</p>
+      </footer>
+    </main>
+  </body>
+</html>

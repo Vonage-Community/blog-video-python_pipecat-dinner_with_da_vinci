@@ -135,10 +135,18 @@ async function loadWaitingRoom() {
     return;
   }
   ui.language.replaceChildren(
-    ...catalog.languages.map(({ code }) => menuChoice('language', code, ...(LANGUAGE_LABELS[code] || [code]))),
+    ...catalog.languages.map(({ code }) =>
+      menuChoice('language', code, ...(LANGUAGE_LABELS[code] || [code])),
+    ),
   );
-  fillSelect(ui.model, catalog.openaiModels.map((m) => [m, m]));
-  fillSelect(ui.voice, catalog.voices.map((v) => [v.id, v.name]));
+  fillSelect(
+    ui.model,
+    catalog.openaiModels.map((m) => [m, m]),
+  );
+  fillSelect(
+    ui.voice,
+    catalog.voices.map((v) => [v.id, v.name]),
+  );
   ui.pause.replaceChildren(
     ...Object.entries(catalog.limits.replyPauses).map(([value, secs]) =>
       radio('pause', value, PAUSE_LABELS[value] || value, `${secs}s`),
@@ -175,7 +183,9 @@ function radio(name, value, text, note) {
 
 function fillSelect(select, entries) {
   select.replaceChildren(
-    ...entries.map(([value, text]) => Object.assign(document.createElement('option'), { value, text })),
+    ...entries.map(([value, text]) =>
+      Object.assign(document.createElement('option'), { value, text }),
+    ),
   );
 }
 
@@ -192,7 +202,8 @@ function applyOptions(o) {
   if (!ui.voice.value) ui.voice.selectedIndex = 0;
   ui.speed.value = o.voiceSpeed;
   ui.words.value = o.interruptMinWords;
-  const pause = ui.pause.querySelector(`input[value="${o.replyPause}"]`) || ui.pause.querySelector('input');
+  const pause =
+    ui.pause.querySelector(`input[value="${o.replyPause}"]`) || ui.pause.querySelector('input');
   if (pause) pause.checked = true;
   renderOptionLabels();
   renderDisclosure();
@@ -240,7 +251,10 @@ function renderKeyterms() {
 
 function addKeyterm() {
   const max = room.catalog?.limits.maxKeyterms || 20;
-  const words = ui.keytermInput.value.split(',').map((w) => w.trim()).filter(Boolean);
+  const words = ui.keytermInput.value
+    .split(',')
+    .map((w) => w.trim())
+    .filter(Boolean);
   for (const word of words) {
     if (!room.keyterms.includes(word) && room.keyterms.length < max) room.keyterms.push(word);
   }
@@ -268,14 +282,22 @@ function saveOptions() {
 function renderCallSummary(options) {
   ui.callSummary.replaceChildren();
   if (!options || call?.agentMode === 'echo') return;
-  const language = room.catalog?.languages.find((l) => l.code === options.language)?.name || options.language;
-  const voice = [...ui.voice.options].find((o) => o.value === options.voiceId)?.text || options.voiceId;
-  const terms = options.keyterms.length ? `, ${options.keyterms.length} keyterm${options.keyterms.length > 1 ? 's' : ''}` : '';
+  const language =
+    room.catalog?.languages.find((l) => l.code === options.language)?.name || options.language;
+  const voice =
+    [...ui.voice.options].find((o) => o.value === options.voiceId)?.text || options.voiceId;
+  const terms = options.keyterms.length
+    ? `, ${options.keyterms.length} keyterm${options.keyterms.length > 1 ? 's' : ''}`
+    : '';
   const items = [
     ['listen', 'Deepgram', `${language}${terms}`],
     ['think', 'OpenAI', `${options.openaiModel}, in character`],
     ['speak', 'ElevenLabs', `${voice}, ${options.voiceSpeed}×`],
-    ['turns', 'Turn-taking', `${PAUSE_LABELS[options.replyPause]} pause, ${options.interruptMinWords} words to interrupt`],
+    [
+      'turns',
+      'Turn-taking',
+      `${PAUSE_LABELS[options.replyPause]} pause, ${options.interruptMinWords} words to interrupt`,
+    ],
   ];
   for (const [kind, name, value] of items) {
     const item = document.createElement('li');
@@ -370,7 +392,9 @@ async function api(path, { method = 'GET', key, body, keepalive = false } = {}) 
   if (!response.ok) {
     const detail = data.detail;
     const message =
-      typeof detail === 'string' ? detail : detail?.message || `Request failed (HTTP ${response.status})`;
+      typeof detail === 'string'
+        ? detail
+        : detail?.message || `Request failed (HTTP ${response.status})`;
     throw new ApiError(response.status, message, detail?.problems || []);
   }
   return data;
@@ -446,7 +470,7 @@ function preflightProblem() {
 function mediaErrorMessage(error) {
   switch (error.name) {
     case 'OT_USER_MEDIA_ACCESS_DENIED':
-      return 'Microphone access is blocked. Allow it in your browser\'s site settings (the icon in the address bar), then try again.';
+      return "Microphone access is blocked. Allow it in your browser's site settings (the icon in the address bar), then try again.";
     case 'OT_NO_DEVICES_FOUND':
     case 'OT_NO_VALID_CONSTRAINTS':
       return 'No microphone was found. Connect one and try again.';
@@ -480,7 +504,7 @@ function createPublisher(useCamera) {
       (error) => (error ? reject(new Error(mediaErrorMessage(error))) : resolve(publisher)),
     );
     publisher.on('accessDialogOpened', () =>
-      setStatus('Allow microphone access in your browser\'s prompt…'),
+      setStatus("Allow microphone access in your browser's prompt…"),
     );
     publisher.on('audioLevelUpdated', (event) => youLevel.update(event.audioLevel));
     publisher.on('mediaStopped', () => {
@@ -505,7 +529,10 @@ function joinSession({ applicationId, vonageSessionId, token }) {
     sessionReconnected: () => setStatus('Reconnected.'),
     sessionDisconnected: (event) => {
       if (call && !call.ending) {
-        endCall(`Disconnected from Vonage Video (${event.reason}).`, event.reason !== 'clientDisconnected');
+        endCall(
+          `Disconnected from Vonage Video (${event.reason}).`,
+          event.reason !== 'clientDisconnected',
+        );
       }
     },
   });
@@ -648,7 +675,9 @@ function onStreamCreated(stream) {
     ui.agentTile.classList.add('live');
     // With video, the SDK's audioLevelUpdated stayed at 0 in testing, so measure his
     // voice from the stream itself.
-    call.stopLevelMeter = measureAudioLevel(event.element.srcObject, (level) => agentLevel.update(level));
+    call.stopLevelMeter = measureAudioLevel(event.element.srcObject, (level) =>
+      agentLevel.update(level),
+    );
   });
   subscriber.on('audioBlocked', offerAudioUnblock);
   subscriber.on('audioUnblocked', () => {
@@ -694,7 +723,9 @@ function renderLiveStatus() {
   // The greeting is over once his first words have arrived and his audio has stopped.
   if (!speaking && call.heardAgent) call.greeted = true;
   if (call.agentMode === 'echo') {
-    setStatusQuietly('Echo diagnostic: you should have heard a beep. Now speak and you will hear yourself.');
+    setStatusQuietly(
+      'Echo diagnostic: you should have heard a beep. Now speak and you will hear yourself.',
+    );
   } else if (speaking && !call.greeted) {
     // The greeting carries the disclosure, so the server doesn't let it be cut short.
     setStatusQuietly('Leonardo welcomes you to his table.');
@@ -725,7 +756,9 @@ function startPolling() {
     } catch (error) {
       if (current.ending) return;
       if (error.status === 404) {
-        endCall('The server no longer knows this session (did it restart?).', true, { serverEnded: true });
+        endCall('The server no longer knows this session (did it restart?).', true, {
+          serverEnded: true,
+        });
       } else if (++current.pollFailures >= 3) {
         endCall('Lost contact with the demo server.', true, { serverEnded: true });
       }
@@ -796,8 +829,12 @@ async function start() {
     call.publisher = await createPublisher(call.useCamera);
 
     setStatus('Starting a session…');
-    const options = room.catalog && room.catalog.agentMode !== 'echo' ? currentOptions() : undefined;
-    const created = await api('/api/sessions', { method: 'POST', body: options ? { options } : {} });
+    const options =
+      room.catalog && room.catalog.agentMode !== 'echo' ? currentOptions() : undefined;
+    const created = await api('/api/sessions', {
+      method: 'POST',
+      body: options ? { options } : {},
+    });
     Object.assign(call, { id: created.id, key: created.sessionKey, agentMode: created.agentMode });
     call.deadline = Date.now() + created.maxSessionSeconds * 1000;
 

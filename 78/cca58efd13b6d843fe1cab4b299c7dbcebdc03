@@ -1,0 +1,14 @@
+web/app.js
+  h_d5be481ddf6211 675-677
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78cca58efd13b6d843fe1cab4b299c7dbcebdc03",
+  "prompts": {},
+  "humans": {
+    "h_d5be481ddf6211": {
+      "author": "Benjamin Aronov <benjamin@benyas.com>"
+    }
+  }
+}

@@ -672,6 +672,9 @@ function onStreamCreated(stream) {
   );
   call.agentSubscriber = subscriber;
   subscriber.on('videoElementCreated', (event) => {
+    // The SDK creates a video element for audio-only streams too: keep the still
+    // portrait unless his stream really has video.
+    if (!avatar) return;
     ui.agentTile.classList.add('live');
     // With video, the SDK's audioLevelUpdated stayed at 0 in testing, so measure his
     // voice from the stream itself.

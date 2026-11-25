@@ -75,4 +75,6 @@ the ultimate sophistication.'"*
 |---|---|---|---|
 | 2026-11-24 | English | Pipeline, headless Chrome, recorded question | Designed voice `GyifqDLdBAgexa11MSrB`. Greeting 15 s, one in-character reply (OpenAI 2.04 s to first words), a mid-reply "Okay." ignored (`min_words=3 bot_speaking=True`). |
 | 2026-11-24 | Italian | Pipeline, headless Chrome, recorded question | Same voice. Greeting 22 s, Italian question answered in Italian, farewell 15 s after the reply. The reply ran 59 s, which led to the Italian length rule. |
-| | | | |
+| | | | 2026-11-25 | English | Pipeline, headless Chrome, recorded question | Simli talking portrait from the illustration (face `79a2f5c3-…`). Face centered in the frame and lip-synced; greeting, reply, and a mid-reply "Okay." ignored. Reply after 3.40 s (Simli about 0.7 s of it). |
+| 2026-11-25 | Italian | Pipeline, headless Chrome, recorded question | Same face. Greeting, an Italian reply (38 s), and the full goodbye 15 s later. |
+| |
